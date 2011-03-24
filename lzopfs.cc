@@ -1,7 +1,9 @@
 #include <fuse.h>
+#include <lzo/lzo1x.h>
 
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 #include <cerrno>
 #include <cstdio>
@@ -12,8 +14,19 @@
 
 namespace {
 
+typedef std::vector<uint8_t> Buffer;
+
+struct Block {
+	uint32_t usize, csize;
+	uint64_t coff, uoff;
+	
+	Block(uint32_t us, uint32_t cs, uint32_t co, uint32_t uo)
+		: usize(us), csize(cs), coff(co), uoff(uo) { }
+};
+
 const char *gSourcePath = 0;
 int gSourceFD;
+std::vector<Block> gBlocks;
 
 const char LzopMagic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 	0x1a, '\n' };
@@ -113,9 +126,90 @@ void readBE(int fd, T& t) {
 	convertBE(t);
 }
 
+void lzopReadBlocks(int fd, std::vector<Block>& blocks) {
+	// Check magic
+	char magic[sizeof(LzopMagic)];
+	readEx(fd, magic, sizeof(magic));
+	if (memcmp(magic, LzopMagic, sizeof(magic)) != 0)
+		throw std::runtime_error("magic mismatch");
+	
+	// FIXME: Check headers for sanity
+	uint32_t flags;
+	// skip versions, method, level
+	seekEx(fd, 3 * sizeof(uint16_t) + 2 * sizeof(uint8_t), SEEK_CUR);
+	readBE(fd, flags);
+	// skip mode, mtimes, filename, checksum
+	seekEx(fd, 3 * sizeof(uint32_t) + sizeof(uint8_t)
+		+ sizeof(uint32_t), SEEK_CUR);
+	
+	// How much space for checksums?
+	size_t csums = 0, usums = 0;
+	if (flags & CRCComp) ++csums;
+	if (flags & AdlerComp) ++csums;
+	if (flags & CRCDec) ++usums;
+	if (flags & AdlerDec) ++usums;
+	csums *= sizeof(uint32_t);
+	usums *= sizeof(uint32_t);
+	
+	// Iterate thru the blocks
+	size_t bheader = 2 * sizeof(uint32_t);
+	uint32_t usize, csize;
+	off_t uoff = 0, coff = xtell(fd);
+	size_t sums;
+	while (true) {
+		readBE(fd, usize);
+		if (usize == 0)
+			break;
+		readBE(fd, csize);
+		
+		sums = usums;
+		if (usize != csize)
+			sums += csums;
+		
+		blocks.push_back(Block(usize, csize,
+			coff + bheader + sums, uoff));
+		
+		coff += sums + csize + 2 * sizeof(uint32_t);
+		uoff += usize;
+		seekEx(fd, sums + csize, SEEK_CUR);
+	}
+}
+
+struct BlockOffsetOrdering {
+	bool operator()(const Block& b, off_t off) {
+		return (b.uoff + b.usize - 1) < (uint64_t)off;
+	}
+	
+	bool operator()(off_t off, const Block& b) {
+		return (uint64_t)off < b.uoff;
+	}
+};
+
+std::vector<Block>::const_iterator findBlock(const std::vector<Block>& blocks,
+		off_t off) {
+	return std::lower_bound(blocks.begin(), blocks.end(), off,
+		BlockOffsetOrdering());
+}
+
+void decompressBlock(int fd, const Block& b, Buffer& cbuf, Buffer &ubuf) {
+	seekEx(fd, b.coff, SEEK_SET);
+	cbuf.resize(b.csize);
+	readEx(fd, &cbuf[0], b.csize);
+	
+	lzo_uint usize = b.usize;
+	ubuf.resize(usize);
+	int err = lzo1x_decompress_safe(&cbuf[0], cbuf.size(), &ubuf[0],
+		&usize, 0);
+	if (err != LZO_E_OK) {
+		fprintf(stderr, "lzo err: %d\n", err);
+		throw std::runtime_error("decompression error");
+	}
+}
+
 } // anon namespace
 
 int main(int argc, char *argv[]) {
+	lzo_init();
 	umask(0);
 	
 	struct fuse_operations ops;
@@ -129,52 +223,11 @@ int main(int argc, char *argv[]) {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 	
-	
-	// Check magic
 	int gSourceFD = open(gSourcePath, O_RDONLY);
-	char magic[sizeof(LzopMagic)];
-	readEx(gSourceFD, magic, sizeof(magic));
-	if (memcmp(magic, LzopMagic, sizeof(magic)) != 0)
-		throw std::runtime_error("magic mismatch");
-	
-	// FIXME: Check headers for sanity
-	uint32_t flags;
-	// skip versions, method, level
-	seekEx(gSourceFD, 3 * sizeof(uint16_t) + 2 * sizeof(uint8_t), SEEK_CUR);
-	readBE(gSourceFD, flags);
-	// skip mode, mtimes, filename, checksum
-	seekEx(gSourceFD, 3 * sizeof(uint32_t) + sizeof(uint8_t)
-		+ sizeof(uint32_t), SEEK_CUR);
-	
-	// How many checksums do we need?
-	size_t csums = 0, usums = 0;
-	if (flags & CRCComp) ++csums;
-	if (flags & AdlerComp) ++csums;
-	if (flags & CRCDec) ++usums;
-	if (flags & AdlerDec) ++usums;
-	
-	// Iterate thru the blocks
-	uint32_t usize, csize;
-	off_t uoff = 0, coff = xtell(gSourceFD) + 2 * sizeof(uint32_t);
-	size_t sums;
-	while (true) {
-		readBE(gSourceFD, usize);
-		if (usize == 0)
-			break;
-		readBE(gSourceFD, csize);
-		
-		sums = usums;
-		if (usize != csize)
-			sums += csums;
-		sums *= sizeof(uint32_t);
-		
-		fprintf(stderr, "uoff = %9lld, coff = %9lld, usize = %9u, "
-			"csize = %9u\n", uoff, coff, usize, csize);
-		
-		coff += sums + csize + 2 * sizeof(uint32_t);
-		uoff += usize;
-		seekEx(gSourceFD, sums + csize, SEEK_CUR);
-	}
+	lzopReadBlocks(gSourceFD, gBlocks);
+	Buffer cbuf, ubuf;
+	decompressBlock(gSourceFD, gBlocks[2], cbuf, ubuf);
+	fwrite(&ubuf[0], ubuf.size(), 1, stdout);
 	
 //	return fuse_main(args.argc, args.argv, &ops, NULL);	
 }
