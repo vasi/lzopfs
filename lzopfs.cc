@@ -23,10 +23,12 @@ struct Block {
 	Block(uint32_t us, uint32_t cs, uint32_t co, uint32_t uo)
 		: usize(us), csize(cs), coff(co), uoff(uo) { }
 };
+typedef std::vector<Block> BlockList;
 
 const char *gSourcePath = 0;
 int gSourceFD;
-std::vector<Block> gBlocks;
+BlockList gBlocks;
+Buffer gCBuf, gUBuf;
 
 const char LzopMagic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 	0x1a, '\n' };
@@ -38,6 +40,10 @@ enum LzopFlags {
 	CRCComp		= 1 << 9,
 };
 
+off_t uncompressedSize(const BlockList& blocks);
+void lzopRead(int fd, void *buf, size_t size, off_t off,
+	const BlockList& blocks, Buffer& cbuf, Buffer& ubuf);
+
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
 	
@@ -47,7 +53,7 @@ extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	} else if (strcmp(path, "/dest") == 0) {
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
-		stbuf->st_size = 1024 * 1024; // FIXME
+		stbuf->st_size = uncompressedSize(gBlocks);
 	} else {
 		return -ENOENT;
 	}
@@ -81,7 +87,11 @@ extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
 
 extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi) {
-	return pread(gSourceFD, buf, size, offset); // FIXME
+	if (strcmp(path, "/dest") != 0)
+		return -ENOENT;
+	
+	lzopRead(gSourceFD, buf, size, offset, gBlocks, gCBuf, gUBuf);
+	return size;
 }
 
 extern "C" int lf_opt_proc(void *data, const char *arg, int key,
@@ -126,7 +136,7 @@ void readBE(int fd, T& t) {
 	convertBE(t);
 }
 
-void lzopReadBlocks(int fd, std::vector<Block>& blocks) {
+void lzopReadBlocks(int fd, BlockList& blocks) {
 	// Check magic
 	char magic[sizeof(LzopMagic)];
 	readEx(fd, magic, sizeof(magic));
@@ -185,10 +195,13 @@ struct BlockOffsetOrdering {
 	}
 };
 
-std::vector<Block>::const_iterator findBlock(const std::vector<Block>& blocks,
+BlockList::const_iterator findBlock(const BlockList& blocks,
 		off_t off) {
-	return std::lower_bound(blocks.begin(), blocks.end(), off,
-		BlockOffsetOrdering());
+	BlockList::const_iterator iter = std::lower_bound(
+		blocks.begin(), blocks.end(), off, BlockOffsetOrdering());
+	if (iter == blocks.end())
+		throw std::runtime_error("can't find block");
+	return iter;
 }
 
 void decompressBlock(int fd, const Block& b, Buffer& cbuf, Buffer &ubuf) {
@@ -198,11 +211,34 @@ void decompressBlock(int fd, const Block& b, Buffer& cbuf, Buffer &ubuf) {
 	
 	lzo_uint usize = b.usize;
 	ubuf.resize(usize);
+	fprintf(stderr, "Decompressing from %lld\n", b.coff);
 	int err = lzo1x_decompress_safe(&cbuf[0], cbuf.size(), &ubuf[0],
 		&usize, 0);
 	if (err != LZO_E_OK) {
 		fprintf(stderr, "lzo err: %d\n", err);
 		throw std::runtime_error("decompression error");
+	}
+}
+
+off_t uncompressedSize(const BlockList& blocks) {
+	if (blocks.empty())
+		return 0;
+	const Block& b = blocks.back();
+	return b.uoff + b.usize;
+}
+
+void lzopRead(int fd, void *buf, size_t size, off_t off,
+		const BlockList& blocks, Buffer& cbuf, Buffer& ubuf) {
+	BlockList::const_iterator biter = findBlock(blocks, off);
+	while (size > 0) {
+		decompressBlock(fd, *biter, cbuf, ubuf);
+		size_t bstart = off - biter->uoff;
+		size_t bsize = std::min(size, ubuf.size() - bstart);
+		memcpy(buf, &ubuf[bstart], bsize);
+		
+		off += bsize;
+		size -= bsize;
+		++biter;
 	}
 }
 
@@ -223,11 +259,8 @@ int main(int argc, char *argv[]) {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 	
-	int gSourceFD = open(gSourcePath, O_RDONLY);
+	gSourceFD = open(gSourcePath, O_RDONLY);
 	lzopReadBlocks(gSourceFD, gBlocks);
-	Buffer cbuf, ubuf;
-	decompressBlock(gSourceFD, gBlocks[2], cbuf, ubuf);
-	fwrite(&ubuf[0], ubuf.size(), 1, stdout);
 	
-//	return fuse_main(args.argc, args.argv, &ops, NULL);	
+	return fuse_main(args.argc, args.argv, &ops, NULL);	
 }
