@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <stdexcept>
+#include <tr1/unordered_map>
 #include <vector>
 
 #include <cerrno>
@@ -25,10 +26,21 @@ struct Block {
 };
 typedef std::vector<Block> BlockList;
 
+struct BlockCache {
+	typedef std::tr1::unordered_map<off_t,Buffer> Map;
+	
+	int fd;
+	Map map;
+	Buffer cbuf;
+	
+	BlockCache(int f) : fd(f) { }
+	
+	const Buffer& data(const Block& b);
+};
+
 const char *gSourcePath = 0;
-int gSourceFD;
+BlockCache *gBlockCache = 0;
 BlockList gBlocks;
-Buffer gCBuf, gUBuf;
 
 const char LzopMagic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 	0x1a, '\n' };
@@ -41,8 +53,8 @@ enum LzopFlags {
 };
 
 off_t uncompressedSize(const BlockList& blocks);
-void lzopRead(int fd, void *buf, size_t size, off_t off,
-	const BlockList& blocks, Buffer& cbuf, Buffer& ubuf);
+void lzopRead(BlockCache& cache, const BlockList& blocks,
+	void *buf, size_t size, off_t off);
 
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
@@ -90,7 +102,7 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 	if (strcmp(path, "/dest") != 0)
 		return -ENOENT;
 	
-	lzopRead(gSourceFD, buf, size, offset, gBlocks, gCBuf, gUBuf);
+	lzopRead(*gBlockCache, gBlocks, buf, size, offset);
 	return size;
 }
 
@@ -227,11 +239,11 @@ off_t uncompressedSize(const BlockList& blocks) {
 	return b.uoff + b.usize;
 }
 
-void lzopRead(int fd, void *buf, size_t size, off_t off,
-		const BlockList& blocks, Buffer& cbuf, Buffer& ubuf) {
+void lzopRead(BlockCache& cache, const BlockList& blocks,
+		void *buf, size_t size, off_t off) {
 	BlockList::const_iterator biter = findBlock(blocks, off);
 	while (size > 0) {
-		decompressBlock(fd, *biter, cbuf, ubuf);
+		const Buffer &ubuf = cache.data(*biter);
 		size_t bstart = off - biter->uoff;
 		size_t bsize = std::min(size, ubuf.size() - bstart);
 		memcpy(buf, &ubuf[bstart], bsize);
@@ -240,6 +252,15 @@ void lzopRead(int fd, void *buf, size_t size, off_t off,
 		size -= bsize;
 		++biter;
 	}
+}
+
+const Buffer& BlockCache::data(const Block& b) {
+	Buffer& buf = map[b.coff];
+	if (buf.empty()) {
+		// FIXME: Eject old cached blocks?
+		decompressBlock(fd, b, cbuf, buf);
+	}
+	return buf;
 }
 
 } // anon namespace
@@ -259,8 +280,9 @@ int main(int argc, char *argv[]) {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 	
-	gSourceFD = open(gSourcePath, O_RDONLY);
-	lzopReadBlocks(gSourceFD, gBlocks);
+	int fd = open(gSourcePath, O_RDONLY);
+	lzopReadBlocks(fd, gBlocks);
+	gBlockCache = new BlockCache(fd);
 	
 	return fuse_main(args.argc, args.argv, &ops, NULL);	
 }
