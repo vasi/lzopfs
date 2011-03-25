@@ -3,7 +3,7 @@
 const size_t BlockCache::DefaultMaxSize = 1024 * 1024 * 32;
 
 void BlockCache::read(void *buf, size_t size, off_t off) {
-	LzopFile::BlockIterator biter = mFile.findBlock(off);
+	LzopFile::BlockIterator biter = mFile->findBlock(off);
 	while (size > 0) {
 		const Buffer &ubuf = cachedData(*biter);
 		size_t bstart = off - biter->uoff;
@@ -24,7 +24,7 @@ const Buffer& BlockCache::cachedData(const Block& block) {
 		mOld.push_front(AgeEntry(coff));
 		mMap[coff] = mOld.begin();
 		Buffer &buf = mOld.front().buf;
-		mFile.decompressBlock(block, mCBuf, buf);
+		mFile->decompressBlock(block, mCBuf, buf);
 		mSize += buf.size();
 		
 		// Remove old ones from the end
@@ -36,19 +36,10 @@ const Buffer& BlockCache::cachedData(const Block& block) {
 			mOld.erase(aiter);
 			--aiter;
 		}
-		
-		fprintf(stderr, "\n");
-		for (AgeList::iterator a2 = mOld.begin(); a2 != mOld.end(); ++a2)
-			fprintf(stderr, "%lld\n", a2->coff);
-		
 		return buf;
 	} else {
 		// Mark it as new
 		mOld.splice(mOld.begin(), mOld, miter->second);
-		
-		fprintf(stderr, "\n");
-		for (AgeList::iterator a2 = mOld.begin(); a2 != mOld.end(); ++a2)
-			fprintf(stderr, "%lld\n", a2->coff);
 		return miter->second->buf;
 	}
 }

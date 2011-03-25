@@ -19,7 +19,7 @@ extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	} else if (strcmp(path, "/dest") == 0) {
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
-		stbuf->st_size = gBlockCache->file().uncompressedSize();
+		stbuf->st_size = gBlockCache->file()->uncompressedSize();
 	} else {
 		return -ENOENT;
 	}
@@ -85,7 +85,8 @@ int main(int argc, char *argv[]) {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 	
-	gBlockCache = new BlockCache(gSourcePath, 1024 * 1024 * 32);
+	LzopFile *lzop = new LzopFile(gSourcePath);
+	gBlockCache = new BlockCache(lzop, 1024 * 1024 * 32);
 	
 	return fuse_main(args.argc, args.argv, &ops, NULL);	
 }

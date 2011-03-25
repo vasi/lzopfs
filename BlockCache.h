@@ -9,7 +9,7 @@
 
 class BlockCache {
 protected:
-	LzopFile mFile;
+	LzopFile *mFile;
 	size_t mMaxSize, mSize;
 	
 	// Least-recently-used cache
@@ -30,12 +30,12 @@ protected:
 public:
 	const static size_t DefaultMaxSize;
 	
-	BlockCache(const char *path, size_t maxsz = DefaultMaxSize)
-		: mFile(path), mMaxSize(maxsz) { }
+	BlockCache(LzopFile *file, size_t maxsz = DefaultMaxSize)
+		: mFile(file), mMaxSize(maxsz), mSize(0) { }
 	
 	void read(void *buf, size_t size, off_t off);
 	
-	const LzopFile& file() const { return mFile; }
+	const LzopFile* file() const { return mFile; }
 };
 
 #endif // BLOCKCACHE_H

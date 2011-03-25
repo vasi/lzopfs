@@ -25,13 +25,13 @@ void LzopFile::parseBlocks() {
 	// Iterate thru the blocks
 	size_t bheader = 2 * sizeof(uint32_t);
 	uint32_t usize, csize;
-	off_t uoff = 0, coff = tell();
+	off_t uoff = 0, coff = seek(0, SEEK_CUR); // tell
 	size_t sums;
 	while (true) {
-		readBE(usize);
+		readBE(mFD, usize);
 		if (usize == 0)
 			break;
-		readBE(csize);
+		readBE(mFD, csize);
 		
 		sums = usums;
 		if (usize != csize)
@@ -42,7 +42,7 @@ void LzopFile::parseBlocks() {
 		
 		coff += sums + csize + 2 * sizeof(uint32_t);
 		uoff += usize;
-		skip(sums + csize);
+		seek(sums + csize, SEEK_CUR);
 	}
 }
 
@@ -55,13 +55,19 @@ void LzopFile::convertBE(T &t) {
 }
 
 template <typename T>
-void LzopFile::readBE(T& t) {
-	read(&t, sizeof(T));
+void LzopFile::readBE(int fd, T& t) {
+	read(fd, &t, sizeof(T));
 	convertBE(t);
 }
 
-void LzopFile::read(void *buf, size_t size) {
-	ssize_t bytes = ::read(mFD, buf, size);
+template <typename T>
+void LzopFile::writeBE(int fd, T t) {
+	convertBE(t);
+	write(fd, &t, sizeof(T));
+}
+
+void LzopFile::read(int fd, void *buf, size_t size) {
+	ssize_t bytes = ::read(fd, buf, size);
 	if (bytes < 0 || (size_t)bytes != size)
 		throw std::runtime_error("read failure");
 }
@@ -73,45 +79,78 @@ off_t LzopFile::seek(off_t off, int whence) {
 	return ret;
 }
 
-void LzopFile::seek(off_t off) {
-	seek(off, SEEK_SET);
-}
-
-void LzopFile::skip(off_t off) {
-	seek(off, SEEK_CUR);
-}
-
-off_t LzopFile::tell() {
-	return seek(0, SEEK_CUR);
+std::string LzopFile::indexPath() const {
+	return mPath + ".blockIdx";
 }
 
 namespace {
 	bool gLzopInited = false;
 }
 
-LzopFile::LzopFile(const char *path) {
+LzopFile::LzopFile(const std::string& path, MissingIndexBehavior mib) 
+		: mPath(path) {
 	if (!gLzopInited) {
 		lzo_init();
 		gLzopInited = true;
 	}
 	
-	mFD = open(path, O_RDONLY);
+	mFD = open(path.c_str(), O_RDONLY);
 	
 	// Check magic
 	char magic[sizeof(Magic)];
-	read(magic, sizeof(magic));
+	read(mFD, magic, sizeof(magic));
 	if (memcmp(magic, Magic, sizeof(magic)) != 0)
 		throw std::runtime_error("magic mismatch");
 	
 	// FIXME: Check headers for sanity
 	// skip versions, method, level
-	skip(3 * sizeof(uint16_t) + 2 * sizeof(uint8_t));
-	readBE(mFlags);
+	seek(3 * sizeof(uint16_t) + 2 * sizeof(uint8_t), SEEK_CUR);
+	readBE(mFD, mFlags);
 	// skip mode, mtimes, filename, checksum
-	skip(3 * sizeof(uint32_t) + sizeof(uint8_t)
-		+ sizeof(uint32_t));
+	seek(3 * sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint32_t), SEEK_CUR);
 	
-	parseBlocks();
+	if (!readIndex()) {
+		if (mib == Die)
+			throw std::runtime_error("missing index");
+		parseBlocks();
+		if (mib == Write)
+			writeIndex();
+	}
+	fprintf(stderr, "Ready\n");
+}
+
+// True on success
+bool LzopFile::readIndex() {
+	int fd = open(indexPath().c_str(), O_RDONLY);
+	if (fd == -1)
+		return false;
+	
+	uint32_t usize, csize;
+	uint64_t uoff = 0, coff;
+	while (true) {
+		readBE(fd, usize);
+		if (usize == 0)
+			return true;
+		readBE(fd, csize);
+		readBE(fd, coff);
+		
+		mBlocks.push_back(Block(usize, csize, coff, uoff));
+		uoff += usize;
+	}
+}
+
+void LzopFile::writeIndex() const {
+	int fd = open(indexPath().c_str(), O_WRONLY | O_CREAT, 0664);
+	for (BlockList::const_iterator iter = mBlocks.begin();
+			iter != mBlocks.end(); ++iter) {
+		writeBE(fd, iter->usize);
+		writeBE(fd, iter->csize);
+		writeBE(fd, iter->coff);
+	}
+	uint32_t eof = 0;
+	writeBE(fd, eof);
+	close(fd);
+	fprintf(stderr, "Wrote index\n");
 }
 
 namespace {
@@ -135,9 +174,9 @@ LzopFile::BlockIterator LzopFile::findBlock(off_t off) const {
 }
 
 void LzopFile::decompressBlock(const Block& b, Buffer& cbuf, Buffer& ubuf) {
-	seek(b.coff);
+	seek(b.coff, SEEK_SET);
 	cbuf.resize(b.csize);
-	read(&cbuf[0], b.csize);
+	read(mFD, &cbuf[0], b.csize);
 	
 	lzo_uint usize = b.usize;
 	ubuf.resize(usize);
