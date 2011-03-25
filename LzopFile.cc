@@ -87,7 +87,7 @@ namespace {
 	bool gLzopInited = false;
 }
 
-LzopFile::LzopFile(const std::string& path, MissingIndexBehavior mib) 
+LzopFile::LzopFile(const std::string& path) 
 		: mPath(path) {
 	if (!gLzopInited) {
 		lzo_init();
@@ -110,11 +110,8 @@ LzopFile::LzopFile(const std::string& path, MissingIndexBehavior mib)
 	seek(3 * sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint32_t), SEEK_CUR);
 	
 	if (!readIndex()) {
-		if (mib == Die)
-			throw std::runtime_error("missing index");
 		parseBlocks();
-		if (mib == Write)
-			writeIndex();
+		writeIndex();
 	}
 	fprintf(stderr, "Ready\n");
 }

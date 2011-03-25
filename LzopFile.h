@@ -17,10 +17,6 @@ public:
 		CRCComp		= 1 << 9,
 	};
 	
-	enum MissingIndexBehavior {
-		Die, Parse, Write,
-	};
-	
 	static const char Magic[];
 
 protected:
@@ -42,7 +38,7 @@ protected:
 	template <typename T> static void writeBE(int fd, T t);
 
 public:
-	LzopFile(const std::string& path, MissingIndexBehavior mib = Write);
+	LzopFile(const std::string& path);
 	
 	BlockIterator findBlock(off_t off) const;
 	void decompressBlock(const Block& b, Buffer& cbuf, Buffer& ubuf);
