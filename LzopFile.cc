@@ -175,11 +175,17 @@ LzopFile::BlockIterator LzopFile::findBlock(off_t off) const {
 
 void LzopFile::decompressBlock(const Block& b, Buffer& cbuf, Buffer& ubuf) {
 	seek(b.coff, SEEK_SET);
+	ubuf.resize(b.usize);
+	
+	if (b.csize == b.usize) { // Uncompressed, just read it
+		read(mFD, &ubuf[0], b.usize);
+		return;
+	}
+	
 	cbuf.resize(b.csize);
 	read(mFD, &cbuf[0], b.csize);
 	
 	lzo_uint usize = b.usize;
-	ubuf.resize(usize);
 	fprintf(stderr, "Decompressing from %lld\n", b.coff);
 	int err = lzo1x_decompress_safe(&cbuf[0], cbuf.size(), &ubuf[0],
 		&usize, 0);
