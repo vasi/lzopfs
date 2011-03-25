@@ -10,6 +10,7 @@ void BlockCache::read(void *buf, size_t size, off_t off) {
 		size_t bsize = std::min(size, ubuf.size() - bstart);
 		memcpy(buf, &ubuf[bstart], bsize);
 		
+		buf = reinterpret_cast<char*>(buf) + bsize;
 		off += bsize;
 		size -= bsize;
 		++biter;
