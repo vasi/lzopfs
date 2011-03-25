@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 	
-	gBlockCache = new BlockCache(gSourcePath);
+	gBlockCache = new BlockCache(gSourcePath, 1024 * 1024 * 32);
 	
 	return fuse_main(args.argc, args.argv, &ops, NULL);	
 }
