@@ -40,9 +40,14 @@ extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
 	if (strcmp(path, "/dest") != 0)
 		return -ENOENT;
-	
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
 		return -EACCES;
+	
+	int fd = open(gSourcePath, fi->flags);
+	if (fd == -1)
+		return -errno;
+	
+	fi->fh = fd;
 	return 0;
 }
 
@@ -56,7 +61,7 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 	if (strcmp(path, "/dest") != 0)
 		return -ENOENT;
 	
-	gBlockCache->read(buf, size, offset);
+	gBlockCache->read(fi->fh, buf, size, offset);
 	return size;
 }
 
@@ -72,21 +77,26 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 } // anon namespace
 
 int main(int argc, char *argv[]) {
-	umask(0);
+	try {
+		umask(0);
 	
-	struct fuse_operations ops;
-	memset(&ops, 0, sizeof(ops));
-	ops.getattr = lf_getattr;
-	ops.readdir = lf_readdir;
-	ops.open = lf_open;
-	ops.release = lf_release;
-	ops.read = lf_read;
+		struct fuse_operations ops;
+		memset(&ops, 0, sizeof(ops));
+		ops.getattr = lf_getattr;
+		ops.readdir = lf_readdir;
+		ops.open = lf_open;
+		ops.release = lf_release;
+		ops.read = lf_read;
 	
-	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
+		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+		fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 	
-	LzopFile *lzop = new LzopFile(gSourcePath);
-	gBlockCache = new BlockCache(lzop, 1024 * 1024 * 32);
-	
-	return fuse_main(args.argc, args.argv, &ops, NULL);	
+		LzopFile *lzop = new LzopFile(gSourcePath);
+		gBlockCache = new BlockCache(lzop, 1024 * 1024 * 32);
+		
+		return fuse_main(args.argc, args.argv, &ops, NULL);
+	} catch (std::runtime_error& e) {
+		fprintf(stderr, "%s\n", e.what());
+		return -1;
+	}
 }

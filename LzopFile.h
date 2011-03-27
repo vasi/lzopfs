@@ -2,6 +2,7 @@
 #define LZOPFILE_H
 
 #include "lzopfs.h"
+#include "FileHandle.h"
 
 #include <string>
 
@@ -21,27 +22,20 @@ public:
 
 protected:
 	std::string mPath;
-	int mFD;
 	uint32_t mFlags;
 	BlockList mBlocks;
 	
+	void parseHeader(FileHandle& fh, uint32_t& flags);
 	void parseBlocks();
 	std::string indexPath() const;
 	bool readIndex();
 	void writeIndex() const;
 	
-	off_t seek(off_t off, int whence);
-	
-	static void read(int fd, void *buf, size_t size);
-	template <typename T> static void convertBE(T &t);
-	template <typename T> static void readBE(int fd, T& t);
-	template <typename T> static void writeBE(int fd, T t);
-
 public:
 	LzopFile(const std::string& path);
 	
 	BlockIterator findBlock(off_t off) const;
-	void decompressBlock(const Block& b, Buffer& cbuf, Buffer& ubuf);
+	void decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf);
 	
 	off_t uncompressedSize() const;
 };

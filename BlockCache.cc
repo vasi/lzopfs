@@ -2,10 +2,11 @@
 
 const size_t BlockCache::DefaultMaxSize = 1024 * 1024 * 32;
 
-void BlockCache::read(void *buf, size_t size, off_t off) {
+void BlockCache::read(int fd, void *buf, size_t size, off_t off) {
+	FileHandle fh(fd);
 	LzopFile::BlockIterator biter = mFile->findBlock(off);
 	while (size > 0) {
-		const Buffer &ubuf = cachedData(*biter);
+		const Buffer &ubuf = cachedData(fh, *biter);
 		size_t bstart = off - biter->uoff;
 		size_t bsize = std::min(size, ubuf.size() - bstart);
 		memcpy(buf, &ubuf[bstart], bsize);
@@ -17,7 +18,7 @@ void BlockCache::read(void *buf, size_t size, off_t off) {
 	}
 }
 
-const Buffer& BlockCache::cachedData(const Block& block) {
+const Buffer& BlockCache::cachedData(FileHandle& fh, const Block& block) {
 	off_t coff = block.coff;
 	Map::iterator miter = mMap.find(coff);
 	if (miter == mMap.end()) {
@@ -25,7 +26,7 @@ const Buffer& BlockCache::cachedData(const Block& block) {
 		mOld.push_front(AgeEntry(coff));
 		mMap[coff] = mOld.begin();
 		Buffer &buf = mOld.front().buf;
-		mFile->decompressBlock(block, mCBuf, buf);
+		mFile->decompressBlock(fh, block, buf);
 		mSize += buf.size();
 		
 		// Remove old ones from the end

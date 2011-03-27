@@ -23,9 +23,8 @@ protected:
 	
 	AgeList mOld; // new buffers at the head, old at the tail
 	Map mMap;
-	Buffer mCBuf;
 	
-	const Buffer& cachedData(const Block& block);
+	const Buffer& cachedData(FileHandle& fh, const Block& block);
 
 public:
 	const static size_t DefaultMaxSize;
@@ -33,7 +32,7 @@ public:
 	BlockCache(LzopFile *file, size_t maxsz = DefaultMaxSize)
 		: mFile(file), mMaxSize(maxsz), mSize(0) { }
 	
-	void read(void *buf, size_t size, off_t off);
+	void read(int fd, void *buf, size_t size, off_t off);
 	
 	const LzopFile* file() const { return mFile; }
 };
