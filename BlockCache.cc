@@ -16,32 +16,22 @@ void BlockCache::read(int fd, void *buf, size_t size, off_t off) {
 		size -= bsize;
 		++biter;
 	}
+	
+	fprintf(stderr, "\nCache:\n");
+	for (LRUMap<off_t, Buffer>::Iterator iter = mMap.begin();
+			iter != mMap.end(); ++iter) {
+		fprintf(stderr, "  %lld\n", iter->key);
+	}
 }
 
 const Buffer& BlockCache::cachedData(FileHandle& fh, const Block& block) {
 	off_t coff = block.coff;
-	Map::iterator miter = mMap.find(coff);
-	if (miter == mMap.end()) {
-		// Add a new buffer and fill it
-		mOld.push_front(AgeEntry(coff));
-		mMap[coff] = mOld.begin();
-		Buffer &buf = mOld.front().buf;
-		mFile->decompressBlock(fh, block, buf);
-		mSize += buf.size();
-		
-		// Remove old ones from the end
-		AgeList::iterator aiter = --mOld.end();
-		while (mSize > mMaxSize) {
-			fprintf(stderr, "Removing old buffer %lld\n", aiter->coff);
-			mSize -= aiter->buf.size();
-			mMap.erase(aiter->coff);
-			mOld.erase(aiter);
-			--aiter;
-		}
-		return buf;
-	} else {
-		// Mark it as new
-		mOld.splice(mOld.begin(), mOld, miter->second);
-		return miter->second->buf;
-	}
+	Buffer *found = mMap.find(coff);
+	if (found)
+		return *found;
+	
+	// Add a new buffer
+	Buffer &buf = mMap.add(coff, Buffer(), block.usize).value;
+	mFile->decompressBlock(fh, block, buf);
+	return buf;
 }
