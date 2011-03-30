@@ -2,24 +2,20 @@
 #define BLOCKCACHE_H
 
 #include "lzopfs.h"
-#include "LzopFile.h"
+#include "OpenCompressedFile.h"
 #include "LRUMap.h"
 
 class BlockCache {
 protected:
-	LzopFile *mFile;
 	LRUMap<off_t, Buffer> mMap;
-	const Buffer& cachedData(FileHandle& fh, const Block& block);
 
 public:
-	const static size_t DefaultMaxSize;
+	BlockCache(size_t maxSize = 0) : mMap(maxSize) { }
+	void maxSize(size_t s) { mMap.maxWeight(s); }
 	
-	BlockCache(LzopFile *file, size_t maxsz = DefaultMaxSize)
-		: mFile(file), mMap(maxsz) { }
+	const Buffer& getBlock(OpenCompressedFile& file, const Block& block);
 	
-	void read(int fd, void *buf, size_t size, off_t off);
-	
-	const LzopFile* file() const { return mFile; }
+	void dump();
 };
 
 #endif // BLOCKCACHE_H

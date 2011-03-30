@@ -16,15 +16,16 @@ protected:
 	
 	static void convertBEBuf(char *buf, size_t size);
 	
-	void throwEx(const char *call) const;
+	void throwEx(const char *call, int err) const;
 	
 public:
 	struct Exception : public virtual std::runtime_error {
-		Exception(const std::string& s) : std::runtime_error(s) { }
+		int error_code;
+		Exception(const std::string& s, int err)
+			: std::runtime_error(s), error_code(err) { }
 	};
-	struct EOFException : public virtual Exception {
-		EOFException(const std::string& s)
-			: std::runtime_error(s), Exception(s) { }
+	struct EOFException : public virtual std::runtime_error {
+		EOFException(const std::string& s) : std::runtime_error(s) { }
 	};
 	
 	FileHandle(int fd = -1) : mFD(fd), mOwnFD(false) { }

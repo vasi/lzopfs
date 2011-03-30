@@ -1,5 +1,7 @@
 #include "lzopfs.h"
+
 #include "BlockCache.h"
+#include "OpenCompressedFile.h"
 
 #include <cerrno>
 
@@ -7,7 +9,10 @@
 
 namespace {
 
-BlockCache *gBlockCache = 0;
+typedef uint64_t FuseFH;
+
+BlockCache gBlockCache;
+LzopFile *gLzop = 0;
 const char *gSourcePath = 0;
 
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
@@ -19,7 +24,7 @@ extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	} else if (strcmp(path, "/dest") == 0) {
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
-		stbuf->st_size = gBlockCache->file()->uncompressedSize();
+		stbuf->st_size = gLzop->uncompressedSize();
 	} else {
 		return -ENOENT;
 	}
@@ -43,16 +48,17 @@ extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
 		return -EACCES;
 	
-	int fd = open(gSourcePath, fi->flags);
-	if (fd == -1)
-		return -errno;
-	
-	fi->fh = fd;
-	return 0;
+	try {
+		fi->fh = FuseFH(new OpenCompressedFile(gLzop, fi->flags));
+		return 0;
+	} catch (FileHandle::Exception& e) {
+		return e.error_code;
+	}
 }
 
 extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
-	close(fi->fh);
+	delete reinterpret_cast<OpenCompressedFile*>(fi->fh);
+	fi->fh = 0;
 	return 0;
 }
 
@@ -61,7 +67,8 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 	if (strcmp(path, "/dest") != 0)
 		return -ENOENT;
 	
-	gBlockCache->read(fi->fh, buf, size, offset);
+	reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
+		gBlockCache, buf, size, offset);
 	return size;
 }
 
@@ -91,8 +98,8 @@ int main(int argc, char *argv[]) {
 		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 		fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 	
-		LzopFile *lzop = new LzopFile(gSourcePath);
-		gBlockCache = new BlockCache(lzop, 1024 * 1024 * 32);
+		gBlockCache.maxSize(1024 * 1024 * 32);
+		gLzop = new LzopFile(gSourcePath);
 		
 		return fuse_main(args.argc, args.argv, &ops, NULL);
 	} catch (std::runtime_error& e) {

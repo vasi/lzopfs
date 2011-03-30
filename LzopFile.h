@@ -34,6 +34,8 @@ protected:
 public:
 	LzopFile(const std::string& path);
 	
+	const std::string& path() const { return mPath; }
+	
 	BlockIterator findBlock(off_t off) const;
 	void decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf);
 	

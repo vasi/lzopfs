@@ -1,37 +1,27 @@
 #include "BlockCache.h"
 
-const size_t BlockCache::DefaultMaxSize = 1024 * 1024 * 32;
-
-void BlockCache::read(int fd, void *buf, size_t size, off_t off) {
-	FileHandle fh(fd);
-	LzopFile::BlockIterator biter = mFile->findBlock(off);
-	while (size > 0) {
-		const Buffer &ubuf = cachedData(fh, *biter);
-		size_t bstart = off - biter->uoff;
-		size_t bsize = std::min(size, ubuf.size() - bstart);
-		memcpy(buf, &ubuf[bstart], bsize);
-		
-		buf = reinterpret_cast<char*>(buf) + bsize;
-		off += bsize;
-		size -= bsize;
-		++biter;
-	}
+void BlockCache::dump() {
+	LRUMap<off_t, Buffer>::Iterator iter;
+	size_t blocks = 0;
 	
-	fprintf(stderr, "\nCache:\n");
-	for (LRUMap<off_t, Buffer>::Iterator iter = mMap.begin();
-			iter != mMap.end(); ++iter) {
+	for (iter = mMap.begin(); iter != mMap.end(); ++iter)
+		++blocks;
+	fprintf(stderr, "\nCache: %3zu blocks, %5.2f MB\n",
+		blocks, mMap.weight() / 1024.0 / 1024);
+	
+	for (iter = mMap.begin(); iter != mMap.end(); ++iter) {
 		fprintf(stderr, "  %lld\n", iter->key);
 	}
 }
 
-const Buffer& BlockCache::cachedData(FileHandle& fh, const Block& block) {
-	off_t coff = block.coff;
-	Buffer *found = mMap.find(coff);
+const Buffer& BlockCache::getBlock(OpenCompressedFile& file,
+		const Block& block) {
+	Buffer *found = mMap.find(block.coff);
 	if (found)
 		return *found;
 	
 	// Add a new buffer
-	Buffer &buf = mMap.add(coff, Buffer(), block.usize).value;
-	mFile->decompressBlock(fh, block, buf);
+	Buffer &buf = mMap.add(block.coff, Buffer(), block.usize).value;
+	file.decompressBlock(block, buf);
 	return buf;
 }

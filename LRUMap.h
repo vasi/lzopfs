@@ -1,3 +1,6 @@
+#ifndef LRUMAP_H
+#define LRUMAP_H
+
 #include <tr1/unordered_map>
 #include <list>
 
@@ -71,3 +74,5 @@ public:
 		return &miter->second->value;
 	}
 };
+
+#endif // LRUMAP_H
