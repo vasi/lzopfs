@@ -1,19 +1,19 @@
 #ifndef FILELIST_H
 #define FILELIST_H
 
-#include "LzopFile.h"
+#include "CompressedFile.h"
 
 #include <string>
 #include <tr1/unordered_map>
 
 class FileList {
-	typedef std::tr1::unordered_map<std::string,LzopFile*> Map;
+	typedef std::tr1::unordered_map<std::string,CompressedFile*> Map;
 	Map mMap;
 	
 public:
 	virtual ~FileList();
 	
-	LzopFile *find(const std::string& dest);
+	CompressedFile *find(const std::string& dest);
 	void add(const std::string& source);
 	
 	template <typename Op>

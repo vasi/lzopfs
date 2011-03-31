@@ -1,6 +1,8 @@
 #include "FileList.h"
 
-LzopFile *FileList::find(const std::string& dest) {
+#include "LzopFile.h"
+
+CompressedFile *FileList::find(const std::string& dest) {
 	Map::iterator found = mMap.find(dest);
 	if (found == mMap.end())
 		return 0;
@@ -8,10 +10,10 @@ LzopFile *FileList::find(const std::string& dest) {
 }
 
 void FileList::add(const std::string& source) {
-	LzopFile *lzop = new LzopFile(source);
+	CompressedFile *file = new LzopFile(source);
 	std::string dest("/");
-	dest.append(lzop->destName());
-	mMap[dest] = lzop;
+	dest.append(file->destName());
+	mMap[dest] = file;
 }
 
 FileList::~FileList() {

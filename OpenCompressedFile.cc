@@ -4,17 +4,17 @@
 
 #include <cstring>
 
-OpenCompressedFile::OpenCompressedFile(LzopFile *lzop, int openFlags)
-		: mLzop(lzop), mFH(lzop->path(), openFlags) { }
+OpenCompressedFile::OpenCompressedFile(CompressedFile *file, int openFlags)
+		: mFile(file), mFH(file->path(), openFlags) { }
 
 void OpenCompressedFile::decompressBlock(const Block& b, Buffer& ubuf) {
-	mLzop->decompressBlock(mFH, b, ubuf);
+	mFile->decompressBlock(mFH, b, ubuf);
 }
 
 ssize_t OpenCompressedFile::read(BlockCache& cache,
 		char *buf, size_t size, off_t offset) {
 	char *p = buf;
-	CompressedFile::BlockIterator biter(mLzop->findBlock(offset));
+	CompressedFile::BlockIterator biter(mFile->findBlock(offset));
 	for (; size > 0 && !biter.end(); ++biter) {
 		const Buffer &ubuf = cache.getBlock(*this, *biter);
 		size_t bstart = offset - biter->uoff;

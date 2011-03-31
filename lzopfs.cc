@@ -2,7 +2,7 @@
 
 #include "BlockCache.h"
 #include "FileList.h"
-#include "LzopFile.h"
+#include "CompressedFile.h"
 #include "OpenCompressedFile.h"
 
 #include <cerrno>
@@ -26,7 +26,7 @@ pthread_mutex_t gReadMutex = PTHREAD_MUTEX_INITIALIZER;
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
 	
-	LzopFile *file;
+	CompressedFile *file;
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
 		stbuf->st_nlink = 3;
@@ -61,7 +61,7 @@ extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 }
 
 extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
-	LzopFile *file;
+	CompressedFile *file;
 	if (!(file = gFiles.find(path)))
 		return -ENOENT;
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
