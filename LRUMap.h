@@ -4,7 +4,10 @@
 #include <tr1/unordered_map>
 #include <list>
 
-template <typename Key, typename Value>
+template <
+	typename Key,
+	typename Value,
+	typename Hash = std::tr1::hash<Key> >
 class LRUMap {
 public:
 	typedef size_t Weight;
@@ -20,7 +23,7 @@ public:
 private:
 	typedef std::list<Entry> LRUList; // most-recent at front
 	typedef typename LRUList::iterator LRUIterator;
-	typedef std::tr1::unordered_map<Key, LRUIterator> IterMap;
+	typedef std::tr1::unordered_map<Key, LRUIterator, Hash> IterMap;
 
 public:
 	typedef LRUIterator Iterator;
@@ -56,7 +59,7 @@ public:
 	Iterator end() { return mLRU.end(); }
 	
 	// Add a new item, ejecting old items to make room if necessary
-	Entry& add(Key k, Value v, Weight w) {
+	Entry& add(const Key& k, const Value& v, Weight w) {
 		makeRoom(maxWeight() - w);
 		mWeight += w;
 		mLRU.push_front(Entry(k, v, w));
@@ -65,7 +68,7 @@ public:
 	}
 	
 	// Find an item, returning null-ptr if not found
-	Value *find(Key k) {
+	Value *find(const Key& k) {
 		typename IterMap::iterator miter = mMap.find(k);
 		if (miter == mMap.end())
 			return 0;

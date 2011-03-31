@@ -12,10 +12,14 @@ class OpenCompressedFile {
 	FileHandle mFH;
 	
 public:
+	typedef std::string FileID;
+	
 	OpenCompressedFile(LzopFile *lzop, int openFlags);
 	
 	void decompressBlock(const Block& b, Buffer& ubuf);
 	void read(BlockCache& cache, char *buf, size_t size, off_t offset);
+	
+	FileID id() const { return mLzop->path(); }
 };
 
 #endif // OPENCOMPRESSEDFILE_H

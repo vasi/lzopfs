@@ -1,7 +1,7 @@
 #include "BlockCache.h"
 
 void BlockCache::dump() {
-	LRUMap<off_t, Buffer>::Iterator iter;
+	Map::Iterator iter;
 	size_t blocks = 0;
 	
 	for (iter = mMap.begin(); iter != mMap.end(); ++iter)
@@ -10,18 +10,20 @@ void BlockCache::dump() {
 		blocks, mMap.weight() / 1024.0 / 1024);
 	
 	for (iter = mMap.begin(); iter != mMap.end(); ++iter) {
-		fprintf(stderr, "  %lld\n", iter->key);
+		fprintf(stderr, "  %9lld %s\n", iter->key.offset,
+			iter->key.id.c_str());
 	}
 }
 
 const Buffer& BlockCache::getBlock(OpenCompressedFile& file,
 		const Block& block) {
-	Buffer *found = mMap.find(block.coff);
+	Key k(file.id(), block.coff);
+	Buffer *found = mMap.find(k);
 	if (found)
 		return *found;
 	
 	// Add a new buffer
-	Buffer &buf = mMap.add(block.coff, Buffer(), block.usize).value;
+	Buffer &buf = mMap.add(k, Buffer(), block.usize).value;
 	file.decompressBlock(block, buf);
 	return buf;
 }
