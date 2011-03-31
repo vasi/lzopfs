@@ -14,6 +14,7 @@ typedef uint64_t FuseFH;
 BlockCache gBlockCache;
 LzopFile *gLzop = 0;
 const char *gSourcePath = 0;
+std::string gDestName;
 
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
@@ -21,7 +22,7 @@ extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
 		stbuf->st_nlink = 3;
-	} else if (strcmp(path, "/dest") == 0) {
+	} else if (path[0] == '/' && gDestName == path + 1) {
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
 		stbuf->st_size = gLzop->uncompressedSize();
@@ -38,12 +39,12 @@ extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
-	filler(buf, "dest", NULL, 0);
+	filler(buf, gDestName.c_str(), NULL, 0);
 	return 0;
 }
 
 extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
-	if (strcmp(path, "/dest") != 0)
+	if (path[0] != '/' || gDestName != path + 1)
 		return -ENOENT;
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
 		return -EACCES;
@@ -64,7 +65,7 @@ extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
 
 extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi) {
-	if (strcmp(path, "/dest") != 0)
+	if (path[0] != '/' || gDestName != path + 1)
 		return -ENOENT;
 	
 	reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
@@ -100,6 +101,7 @@ int main(int argc, char *argv[]) {
 	
 		gBlockCache.maxSize(1024 * 1024 * 32);
 		gLzop = new LzopFile(gSourcePath);
+		gDestName = gLzop->destName();
 		
 		return fuse_main(args.argc, args.argv, &ops, NULL);
 	} catch (std::runtime_error& e) {

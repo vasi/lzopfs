@@ -1,7 +1,10 @@
 #include "LzopFile.h"
 
+#include "PathUtils.h"
+
 #include <algorithm>
 #include <stdexcept>
+
 #include <fcntl.h>
 
 #include <libkern/OSByteOrder.h>
@@ -170,4 +173,8 @@ off_t LzopFile::uncompressedSize() const {
 		return 0;
 	const Block& b = mBlocks.back();
 	return b.uoff + b.usize;
+}
+
+std::string LzopFile::destName() const {
+	return PathUtils::removeExtension(PathUtils::basename(path()), ".lzo");
 }
