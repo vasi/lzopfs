@@ -2,21 +2,10 @@
 #define LZOPFILE_H
 
 #include "lzopfs.h"
-#include "FileHandle.h"
+#include "CompressedFile.h"
 
-#include <string>
-
-class LzopFile {
+class LzopFile : public CompressedFile {
 public:
-	typedef std::vector<Block> BlockList;
-	typedef BlockList::const_iterator BlockIterator;
-
-	struct FormatException : public virtual std::runtime_error {
-		std::string file;
-		FormatException(const std::string& f, const std::string& s)
-			: std::runtime_error(s), file(f) { }
-		~FormatException() throw() { }
-	};
 
 protected:
 	typedef uint32_t Checksum;
@@ -38,12 +27,22 @@ protected:
 	static const uint16_t LzopDecodeVersion;
 	
 	
-	std::string mPath;
+	typedef std::vector<Block> BlockList;
 	BlockList mBlocks;
+	
+	class Iterator : public BlockIteratorInner {
+		BlockList::const_iterator mIter, mEnd;
+	public:
+		Iterator(BlockList::const_iterator i, BlockList::const_iterator e)
+			: mIter(i), mEnd(e) { }
+		virtual void incr() { ++mIter; }
+		virtual const Block& deref() const { return *mIter; }
+		virtual bool end() const { return mIter == mEnd; }
+	};
+	
 	
 	void parseHeader(FileHandle& fh, uint32_t& flags);
 	Checksum checksum(ChecksumType type, const Buffer& buf);
-	void throwFormat(const std::string& s) const;
 	
 	void parseBlocks();
 	std::string indexPath() const;
@@ -53,15 +52,14 @@ protected:
 public:
 	LzopFile(const std::string& path);
 	
-	const std::string& path() const { return mPath; }
-	std::string destName() const;
+	virtual std::string suffix() const { return ".lzo"; }
 	
-	BlockIterator findBlock(off_t off) const;
-	BlockIterator blockEnd() const { return mBlocks.end(); }
+	virtual BlockIterator findBlock(off_t off) const;
 	
-	void decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf);
+	virtual void decompressBlock(FileHandle& fh, const Block& b,
+		Buffer& ubuf);
 	
-	off_t uncompressedSize() const;
+	virtual off_t uncompressedSize() const;
 };
 
 #endif // LZOPFILE_H

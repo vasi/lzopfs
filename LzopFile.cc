@@ -1,7 +1,5 @@
 #include "LzopFile.h"
 
-#include "PathUtils.h"
-
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -17,10 +15,6 @@ const char LzopFile::Magic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 
 // Version of lzop we emulate
 const uint16_t LzopFile::LzopDecodeVersion = 0x1010;
-
-void LzopFile::throwFormat(const std::string& s) const {
-	throw FormatException(mPath, s);
-}
 
 void LzopFile::parseHeader(FileHandle& fh, uint32_t& flags) {
 	try {		
@@ -129,8 +123,7 @@ namespace {
 	bool gLzopInited = false;
 }
 
-LzopFile::LzopFile(const std::string& path) 
-		: mPath(path) {
+LzopFile::LzopFile(const std::string& path) : CompressedFile(path) {
 	if (!gLzopInited) {
 		lzo_init();
 		gLzopInited = true;
@@ -191,12 +184,12 @@ struct BlockOffsetOrdering {
 };
 }
 
-LzopFile::BlockIterator LzopFile::findBlock(off_t off) const {
-	BlockIterator iter = std::lower_bound(
+CompressedFile::BlockIterator LzopFile::findBlock(off_t off) const {
+	BlockList::const_iterator iter = std::lower_bound(
 		mBlocks.begin(), mBlocks.end(), off, BlockOffsetOrdering());
 	if (iter == mBlocks.end())
 		throw std::runtime_error("can't find block");
-	return iter;
+	return BlockIterator(new Iterator(iter, mBlocks.end()));
 }
 
 void LzopFile::decompressBlock(FileHandle& fh, const Block& b,
@@ -226,8 +219,4 @@ off_t LzopFile::uncompressedSize() const {
 		return 0;
 	const Block& b = mBlocks.back();
 	return b.uoff + b.usize;
-}
-
-std::string LzopFile::destName() const {
-	return PathUtils::removeExtension(PathUtils::basename(path()), ".lzo");
 }

@@ -1,7 +1,7 @@
 - Write README
 - Add support for other compression formats (pixz, pigz, bzip2)
-- Checksum blocks on decompression?
 - Remove debug messages
 - Multi-threaded
 	- Decompression threads
 	- Multiple in-flight requests?
+- Checksum blocks on decompression?
