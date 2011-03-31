@@ -11,21 +11,40 @@ public:
 	typedef std::vector<Block> BlockList;
 	typedef BlockList::const_iterator BlockIterator;
 
+	struct FormatException : public virtual std::runtime_error {
+		std::string file;
+		FormatException(const std::string& f, const std::string& s)
+			: std::runtime_error(s), file(f) { }
+		~FormatException() throw() { }
+	};
+
+protected:
+	typedef uint32_t Checksum;
+	
 	enum Flags {
 		AdlerDec	= 1 << 0,
 		AdlerComp	= 1 << 1,
+		ExtraField	= 1 << 6,
 		CRCDec		= 1 << 8,
 		CRCComp		= 1 << 9,
+		MultiPart	= 1 << 10,
+		Filter		= 1 << 11,
+		HeaderCRC	= 1 << 12,
 	};
 	
+	enum ChecksumType { Adler, CRC };
+	
 	static const char Magic[];
-
-protected:
+	static const uint16_t LzopDecodeVersion;
+	
+	
 	std::string mPath;
-	uint32_t mFlags;
 	BlockList mBlocks;
 	
 	void parseHeader(FileHandle& fh, uint32_t& flags);
+	Checksum checksum(ChecksumType type, const Buffer& buf);
+	void throwFormat(const std::string& s) const;
+	
 	void parseBlocks();
 	std::string indexPath() const;
 	bool readIndex();

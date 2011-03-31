@@ -7,8 +7,6 @@
 #include <cstring>
 #include <stdexcept>
 
-#include <fcntl.h>
-
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
@@ -17,20 +15,72 @@
 const char LzopFile::Magic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 	0x1a, '\n' };
 
+// Version of lzop we emulate
+const uint16_t LzopFile::LzopDecodeVersion = 0x1010;
+
+void LzopFile::throwFormat(const std::string& s) const {
+	throw FormatException(mPath, s);
+}
+
 void LzopFile::parseHeader(FileHandle& fh, uint32_t& flags) {
-	// Check magic
-	Buffer magic;
-	fh.read(magic, sizeof(Magic));
-	if (memcmp(&magic[0], Magic, magic.size()) != 0)
-		throw std::runtime_error("magic mismatch");
-	
-	// FIXME: Check headers for sanity
-	// skip versions, method, level
-	fh.seek(3 * sizeof(uint16_t) + 2 * sizeof(uint8_t), SEEK_CUR);
-	fh.readBE(flags);
-	// skip mode, mtimes, filename, checksum
-	fh.seek(3 * sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint32_t),
-		SEEK_CUR);
+	try {		
+		// Check magic
+		Buffer magic;
+		fh.read(magic, sizeof(Magic));
+		if (memcmp(&magic[0], Magic, magic.size()) != 0)
+			throwFormat("magic mismatch");
+		off_t headerStart = fh.tell();
+		
+		uint16_t lzopEncVers, lzopMinVers, lzoVers;
+		fh.readBE(lzopEncVers);
+		fh.readBE(lzoVers);
+		fh.readBE(lzopMinVers);
+		if (lzopMinVers > LzopDecodeVersion)
+			throwFormat("lzop version too new");
+		
+		uint8_t method, level;
+		fh.readBE(method);
+		fh.readBE(level);
+		
+		fh.readBE(flags);
+		if (flags & MultiPart)
+			throwFormat("multi-part archives not supported");
+		if (flags & Filter)
+			throwFormat("filter not supported");
+		
+		fh.seek(3 * sizeof(uint32_t)); // skip mode, mtimes
+		
+		uint8_t filenameSize;
+		fh.readBE(filenameSize);
+		if (filenameSize > 0)
+			fh.seek(filenameSize);
+		
+		
+		// Check the checksum
+		size_t headerSize = fh.tell() - headerStart;
+		fh.seek(headerStart, SEEK_SET);
+		Buffer header;
+		fh.read(header, headerSize);
+		
+		Checksum cksum;
+		fh.readBE(cksum);
+		if (cksum != checksum((flags & HeaderCRC) ? CRC : Adler, header))
+			throwFormat("checksum mismatch");
+		
+		
+		if (flags & ExtraField) { // unused?
+			uint32_t extraSize;
+			fh.readBE(extraSize);
+			fh.seek(extraSize + sizeof(Checksum));
+		}		
+	} catch (FileHandle::EOFException& e) {
+		throwFormat("EOF");
+	}
+}
+
+LzopFile::Checksum LzopFile::checksum(ChecksumType type, const Buffer& buf) {
+	lzo_uint32 init = (type == CRC) ? 0 : 1;
+	return (type == CRC ? lzo_crc32 : lzo_adler32)(init, &buf[0], buf.size());
 }
 
 void LzopFile::parseBlocks() {
@@ -67,7 +117,7 @@ void LzopFile::parseBlocks() {
 		
 		coff += sums + csize + 2 * sizeof(uint32_t);
 		uoff += usize;
-		fh.seek(sums + csize, SEEK_CUR);
+		fh.seek(sums + csize);
 	}
 }
 

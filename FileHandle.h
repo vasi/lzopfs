@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <sys/types.h>
+#include <fcntl.h>
 
 class FileHandle {
 protected:
@@ -36,7 +36,7 @@ public:
 	void read(void *buf, size_t size);
 	void read(Buffer& buf, size_t size);
 	void write(void *buf, size_t size);
-	off_t seek(off_t offset, int whence);
+	off_t seek(off_t offset, int whence = SEEK_CUR);
 	off_t tell();
 	
 	template <typename T>

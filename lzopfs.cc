@@ -93,8 +93,14 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 		struct fuse_args *outargs) {
 	if (key == FUSE_OPT_KEY_NONOPT) {
-		if (gNextSource)
-			gFiles.add(gNextSource);
+		if (gNextSource) {
+			try {
+				gFiles.add(gNextSource);
+			} catch (std::runtime_error& e) {
+				fprintf(stderr, "%s\n", e.what());
+				exit(1);
+			}
+		}
 		gNextSource = arg;
 		return 0;
 	}
@@ -104,27 +110,22 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 } // anon namespace
 
 int main(int argc, char *argv[]) {
-	try {
-		umask(0);
+	umask(0);
+
+	struct fuse_operations ops;
+	memset(&ops, 0, sizeof(ops));
+	ops.getattr = lf_getattr;
+	ops.readdir = lf_readdir;
+	ops.open = lf_open;
+	ops.release = lf_release;
+	ops.read = lf_read;
+
+	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
+	if (gNextSource)
+		fuse_opt_add_arg(&args, gNextSource);
 	
-		struct fuse_operations ops;
-		memset(&ops, 0, sizeof(ops));
-		ops.getattr = lf_getattr;
-		ops.readdir = lf_readdir;
-		ops.open = lf_open;
-		ops.release = lf_release;
-		ops.read = lf_read;
+	gBlockCache.maxSize(1024 * 1024 * 32);
 	
-		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-		fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
-		if (gNextSource)
-			fuse_opt_add_arg(&args, gNextSource);
-		
-		gBlockCache.maxSize(1024 * 1024 * 32);
-		
-		return fuse_main(args.argc, args.argv, &ops, NULL);
-	} catch (std::runtime_error& e) {
-		fprintf(stderr, "%s\n", e.what());
-		return -1;
-	}
+	return fuse_main(args.argc, args.argv, &ops, NULL);
 }

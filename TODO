@@ -1,6 +1,6 @@
 - Write README
 - Add support for other compression formats (pixz, pigz, bzip2)
-- Check lzop headers for sanity
+- Checksum blocks on decompression?
 - Remove debug messages
 - Multi-threaded
 	- Decompression threads
