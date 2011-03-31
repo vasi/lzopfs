@@ -1,6 +1,8 @@
 #include "lzopfs.h"
 
 #include "BlockCache.h"
+#include "FileList.h"
+#include "LzopFile.h"
 #include "OpenCompressedFile.h"
 
 #include <cerrno>
@@ -11,26 +13,35 @@ namespace {
 
 typedef uint64_t FuseFH;
 
+const char *gNextSource = 0;
 BlockCache gBlockCache;
-LzopFile *gLzop = 0;
-const char *gSourcePath = 0;
-std::string gDestName;
+FileList gFiles;
 
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
 	
+	LzopFile *file;
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
 		stbuf->st_nlink = 3;
-	} else if (path[0] == '/' && gDestName == path + 1) {
+	} else if ((file = gFiles.find(path))) {
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
-		stbuf->st_size = gLzop->uncompressedSize();
+		stbuf->st_size = file->uncompressedSize();
 	} else {
 		return -ENOENT;
 	}
 	return 0;
 }
+
+struct DirFiller {
+	void *buf;
+	fuse_fill_dir_t filler;
+	DirFiller(void *b, fuse_fill_dir_t f) : buf(b), filler(f) { }
+	void operator()(const std::string& path) {
+		filler(buf, path.c_str() + 1, NULL, 0);
+	}
+};
 
 extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		off_t offset, struct fuse_file_info *fi) {
@@ -39,18 +50,19 @@ extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
-	filler(buf, gDestName.c_str(), NULL, 0);
+	gFiles.forNames(DirFiller(buf, filler));
 	return 0;
 }
 
 extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
-	if (path[0] != '/' || gDestName != path + 1)
+	LzopFile *file;
+	if (!(file = gFiles.find(path)))
 		return -ENOENT;
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
 		return -EACCES;
 	
 	try {
-		fi->fh = FuseFH(new OpenCompressedFile(gLzop, fi->flags));
+		fi->fh = FuseFH(new OpenCompressedFile(file, fi->flags));
 		return 0;
 	} catch (FileHandle::Exception& e) {
 		return e.error_code;
@@ -65,9 +77,6 @@ extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
 
 extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi) {
-	if (path[0] != '/' || gDestName != path + 1)
-		return -ENOENT;
-	
 	reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
 		gBlockCache, buf, size, offset);
 	return size;
@@ -75,8 +84,10 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 
 extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 		struct fuse_args *outargs) {
-	if (gSourcePath == 0 && key == FUSE_OPT_KEY_NONOPT) {
-		gSourcePath = arg;
+	if (key == FUSE_OPT_KEY_NONOPT) {
+		if (gNextSource)
+			gFiles.add(gNextSource);
+		gNextSource = arg;
 		return 0;
 	}
 	return 1;
@@ -98,10 +109,10 @@ int main(int argc, char *argv[]) {
 	
 		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 		fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
-	
+		if (gNextSource)
+			fuse_opt_add_arg(&args, gNextSource);
+		
 		gBlockCache.maxSize(1024 * 1024 * 32);
-		gLzop = new LzopFile(gSourcePath);
-		gDestName = gLzop->destName();
 		
 		return fuse_main(args.argc, args.argv, &ops, NULL);
 	} catch (std::runtime_error& e) {
