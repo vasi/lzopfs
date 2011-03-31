@@ -9,6 +9,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include <pthread.h>
+
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
 
@@ -19,6 +21,7 @@ typedef uint64_t FuseFH;
 const char *gNextSource = 0;
 BlockCache gBlockCache;
 FileList gFiles;
+pthread_mutex_t gReadMutex = PTHREAD_MUTEX_INITIALIZER;
 
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
@@ -80,9 +83,11 @@ extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
 
 extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi) {
-	return reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
+	pthread_mutex_lock(&gReadMutex);
+	int ret = reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
 		gBlockCache, buf, size, offset);
-	return size;
+	pthread_mutex_unlock(&gReadMutex);
+	return ret;
 }
 
 extern "C" int lf_opt_proc(void *data, const char *arg, int key,
