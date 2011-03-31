@@ -1,0 +1,5 @@
+- Write README
+- Add support for other compression formats (pixz, pigz, bzip2)
+- Check lzop headers for sanity
+- Remove debug messages
+- Locking for thread safety?
