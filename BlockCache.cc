@@ -1,5 +1,10 @@
 #include "BlockCache.h"
 
+#include <cstdio>
+
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 void BlockCache::dump() {
 	Map::Iterator iter;
 	size_t blocks = 0;
@@ -10,7 +15,7 @@ void BlockCache::dump() {
 		blocks, mMap.weight() / 1024.0 / 1024);
 	
 	for (iter = mMap.begin(); iter != mMap.end(); ++iter) {
-		fprintf(stderr, "  %9lld %s\n", iter->key.offset,
+		fprintf(stderr, "  %9" PRIu64 " %s\n", uint64_t(iter->key.offset),
 			iter->key.id.c_str());
 	}
 }

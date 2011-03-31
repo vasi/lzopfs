@@ -2,6 +2,7 @@
 #define LZOPFS_H
 
 #include <vector>
+#include <stdint.h>
 
 typedef std::vector<uint8_t> Buffer;
 

@@ -3,6 +3,7 @@
 
 #include "LzopFile.h"
 
+#include <string>
 #include <tr1/unordered_map>
 
 class FileList {

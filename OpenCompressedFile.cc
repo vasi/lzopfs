@@ -2,6 +2,8 @@
 
 #include "BlockCache.h"
 
+#include <cstring>
+
 OpenCompressedFile::OpenCompressedFile(LzopFile *lzop, int openFlags)
 		: mLzop(lzop), mFH(lzop->path(), openFlags) { }
 

@@ -6,7 +6,10 @@
 #include "OpenCompressedFile.h"
 
 #include <cerrno>
+#include <cstdio>
+#include <cstring>
 
+#define FUSE_USE_VERSION 26
 #include <fuse.h>
 
 namespace {

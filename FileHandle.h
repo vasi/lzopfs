@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <string>
 
-#include <fcntl.h>
+#include <sys/types.h>
 
 class FileHandle {
 protected:
@@ -37,7 +37,7 @@ public:
 	void read(Buffer& buf, size_t size);
 	void write(void *buf, size_t size);
 	off_t seek(off_t offset, int whence);
-	off_t tell() { return seek(0, SEEK_CUR); }
+	off_t tell();
 	
 	template <typename T>
 	static void convertBE(T &t) {

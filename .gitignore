@@ -3,3 +3,7 @@ lzopfs
 *.o
 mount
 .sconsign*
+*.pyc
+config.log
+.sconf_temp
+config.h

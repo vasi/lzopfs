@@ -3,11 +3,14 @@
 #include "PathUtils.h"
 
 #include <algorithm>
+#include <cstdio>
+#include <cstring>
 #include <stdexcept>
 
 #include <fcntl.h>
 
-#include <libkern/OSByteOrder.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
 #include <lzo/lzo1x.h>
 
@@ -159,7 +162,7 @@ void LzopFile::decompressBlock(FileHandle& fh, const Block& b,
 	
 	ubuf.resize(b.usize);
 	lzo_uint usize = b.usize;
-	fprintf(stderr, "Decompressing from %lld\n", b.coff);
+	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));
 	int err = lzo1x_decompress_safe(&cbuf[0], cbuf.size(), &ubuf[0],
 		&usize, 0);
 	if (err != LZO_E_OK) {
