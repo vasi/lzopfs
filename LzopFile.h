@@ -38,6 +38,8 @@ public:
 	std::string destName() const;
 	
 	BlockIterator findBlock(off_t off) const;
+	BlockIterator blockEnd() const { return mBlocks.end(); }
+	
 	void decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf);
 	
 	off_t uncompressedSize() const;

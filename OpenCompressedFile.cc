@@ -11,20 +11,23 @@ void OpenCompressedFile::decompressBlock(const Block& b, Buffer& ubuf) {
 	mLzop->decompressBlock(mFH, b, ubuf);
 }
 
-void OpenCompressedFile::read(BlockCache& cache,
+ssize_t OpenCompressedFile::read(BlockCache& cache,
 		char *buf, size_t size, off_t offset) {
-	LzopFile::BlockIterator biter = mLzop->findBlock(offset);
-	while (size > 0) {
+	char *p = buf;
+	LzopFile::BlockIterator biter;
+	for (biter = mLzop->findBlock(offset);
+			size > 0 && biter != mLzop->blockEnd();
+			++biter) {
 		const Buffer &ubuf = cache.getBlock(*this, *biter);
 		size_t bstart = offset - biter->uoff;
 		size_t bsize = std::min(size, ubuf.size() - bstart);
-		memcpy(buf, &ubuf[bstart], bsize);
+		memcpy(p, &ubuf[bstart], bsize);
 
-		buf = reinterpret_cast<char*>(buf) + bsize;
+		p += bsize;
 		offset += bsize;
 		size -= bsize;
-		++biter;
 	}
 	
 //	cache.dump();
+	return p - buf;
 }

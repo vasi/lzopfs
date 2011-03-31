@@ -80,7 +80,7 @@ extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
 
 extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi) {
-	reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
+	return reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
 		gBlockCache, buf, size, offset);
 	return size;
 }

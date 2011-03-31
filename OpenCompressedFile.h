@@ -17,7 +17,7 @@ public:
 	OpenCompressedFile(LzopFile *lzop, int openFlags);
 	
 	void decompressBlock(const Block& b, Buffer& ubuf);
-	void read(BlockCache& cache, char *buf, size_t size, off_t offset);
+	ssize_t read(BlockCache& cache, char *buf, size_t size, off_t offset);
 	
 	FileID id() const { return mLzop->path(); }
 };
