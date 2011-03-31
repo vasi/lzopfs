@@ -23,6 +23,9 @@ if not FindFUSE(conf):
 if not FindLib(conf, ['lzo2']):
     print 'LZO not found.'
     Exit(1)
+if not FindLib(conf, ['lzma']):
+    print 'LZMA not found.'
+    Exit(1)
 
 if not conf.CheckHeader('libkern/OSByteOrder.h'):
     if not conf.CheckHeader('endian.h'):

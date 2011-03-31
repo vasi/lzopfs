@@ -5,8 +5,6 @@
 #include "CompressedFile.h"
 
 class LzopFile : public CompressedFile {
-public:
-
 protected:
 	typedef uint32_t Checksum;
 	

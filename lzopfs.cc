@@ -23,6 +23,11 @@ BlockCache gBlockCache;
 FileList gFiles;
 pthread_mutex_t gReadMutex = PTHREAD_MUTEX_INITIALIZER;
 
+void except(std::runtime_error& e) {
+	fprintf(stderr, "%s: %s\n", typeid(e).name(), e.what());
+	exit(1);
+}
+
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
 	
@@ -84,8 +89,13 @@ extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
 extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi) {
 	pthread_mutex_lock(&gReadMutex);
-	int ret = reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
-		gBlockCache, buf, size, offset);
+	int ret;
+	try {
+		ret = reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
+			gBlockCache, buf, size, offset);
+	} catch (std::runtime_error& e) {
+		except(e);
+	}
 	pthread_mutex_unlock(&gReadMutex);
 	return ret;
 }
@@ -97,8 +107,7 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 			try {
 				gFiles.add(gNextSource);
 			} catch (std::runtime_error& e) {
-				fprintf(stderr, "%s\n", e.what());
-				exit(1);
+				except(e);
 			}
 		}
 		gNextSource = arg;
@@ -110,22 +119,26 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 } // anon namespace
 
 int main(int argc, char *argv[]) {
-	umask(0);
-
-	struct fuse_operations ops;
-	memset(&ops, 0, sizeof(ops));
-	ops.getattr = lf_getattr;
-	ops.readdir = lf_readdir;
-	ops.open = lf_open;
-	ops.release = lf_release;
-	ops.read = lf_read;
-
-	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-	fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
-	if (gNextSource)
-		fuse_opt_add_arg(&args, gNextSource);
+	try {
+		umask(0);
 	
-	gBlockCache.maxSize(1024 * 1024 * 32);
+		struct fuse_operations ops;
+		memset(&ops, 0, sizeof(ops));
+		ops.getattr = lf_getattr;
+		ops.readdir = lf_readdir;
+		ops.open = lf_open;
+		ops.release = lf_release;
+		ops.read = lf_read;
 	
-	return fuse_main(args.argc, args.argv, &ops, NULL);
+		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+		fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
+		if (gNextSource)
+			fuse_opt_add_arg(&args, gNextSource);
+	
+		gBlockCache.maxSize(1024 * 1024 * 32);
+	
+		return fuse_main(args.argc, args.argv, &ops, NULL);
+	} catch (std::runtime_error& e) {
+		except(e);
+	}
 }

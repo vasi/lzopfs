@@ -34,16 +34,27 @@ FileHandle::~FileHandle() {
 }
 
 void FileHandle::read(void *buf, size_t size) {
-	ssize_t bytes = ::read(mFD, buf, size);
-	if (bytes < 0)
-		THROW_EX("read");
-	if (size_t(bytes) < size)
+	if (tryRead(buf, size) < size)
 		throw EOFException(mPath);
 }
 
 void FileHandle::read(Buffer& buf, size_t size) {
 	buf.resize(size);
 	read(&buf[0], size);
+}
+
+size_t FileHandle::tryRead(Buffer& buf, size_t size) {
+	buf.resize(size);
+	return tryRead(&buf[0], size);
+}
+
+size_t FileHandle::tryRead(void *buf, size_t size) {
+	ssize_t bytes = ::read(mFD, buf, size);
+	if (bytes < 0)
+		THROW_EX("read");
+	if (bytes == 0)
+		throw EOFException(mPath);
+	return size_t(bytes);
 }
 
 void FileHandle::write(void *buf, size_t size) {
@@ -82,3 +93,8 @@ void FileHandle::convertBEBuf(char *buf, size_t size) {
 	#endif	
 }
 
+void FileHandle::convertLEBuf(char *buf, size_t size) {
+	#ifndef __LITTLE_ENDIAN__
+		std::reverse(buf, buf + size);
+	#endif	
+}

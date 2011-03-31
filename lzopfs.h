@@ -10,7 +10,7 @@ struct Block {
 	uint32_t usize, csize;
 	uint64_t coff, uoff;
 	
-	Block(uint32_t us, uint32_t cs, uint32_t co, uint32_t uo)
+	Block(uint32_t us = 0, uint32_t cs = 0, uint32_t co = 0, uint32_t uo = 0)
 		: usize(us), csize(cs), coff(co), uoff(uo) { }
 };
 

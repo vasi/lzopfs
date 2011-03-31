@@ -26,6 +26,6 @@ ssize_t OpenCompressedFile::read(BlockCache& cache,
 		size -= bsize;
 	}
 	
-//	cache.dump();
+	// cache.dump();
 	return p - buf;
 }
