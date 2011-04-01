@@ -18,6 +18,8 @@ namespace {
 
 typedef uint64_t FuseFH;
 
+const size_t CacheSize = 1024 * 1024 * 32;
+
 const char *gNextSource = 0;
 BlockCache gBlockCache;
 FileList gFiles;
@@ -135,7 +137,7 @@ int main(int argc, char *argv[]) {
 		if (gNextSource)
 			fuse_opt_add_arg(&args, gNextSource);
 	
-		gBlockCache.maxSize(1024 * 1024 * 32);
+		gBlockCache.maxSize(CacheSize);
 	
 		return fuse_main(args.argc, args.argv, &ops, NULL);
 	} catch (std::runtime_error& e) {

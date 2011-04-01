@@ -18,10 +18,10 @@ ssize_t OpenCompressedFile::read(BlockCache& cache,
 	try {
  		biter = mFile->findBlock(offset);
 		for (; size > 0 && !biter->end(); ++*biter) {
-			const Buffer &ubuf = cache.getBlock(*this, **biter);
+			BlockCache::CachedBuffer ubuf = cache.getBlock(*this, **biter);
 			size_t bstart = offset - (*biter)->uoff;
-			size_t bsize = std::min(size, ubuf.size() - bstart);
-			memcpy(p, &ubuf[bstart], bsize);
+			size_t bsize = std::min(size, ubuf->size() - bstart);
+			memcpy(p, &(*ubuf)[bstart], bsize);
 
 			p += bsize;
 			offset += bsize;

@@ -19,6 +19,10 @@ public:
 		
 		Entry(Key k, Value v, Weight w) : key(k), value(v), weight(w) { }
 	};
+	
+	struct OverWeight : std::runtime_error {
+		OverWeight() : std::runtime_error("LRUMap element too large") { }
+	};
 
 private:
 	typedef std::list<Entry> LRUList; // most-recent at front
@@ -60,6 +64,9 @@ public:
 	
 	// Add a new item, ejecting old items to make room if necessary
 	Entry& add(const Key& k, const Value& v, Weight w) {
+		if (w > maxWeight())
+			throw OverWeight();
+		
 		makeRoom(maxWeight() - w);
 		mWeight += w;
 		mLRU.push_front(Entry(k, v, w));

@@ -25,10 +25,38 @@ protected:
 	Map mMap;
 
 public:
+	// Buffer container, which transfers ownership on copy
+	struct CachedBufferRef {
+		Buffer *buf;
+		bool owned;
+		explicit CachedBufferRef(Buffer *b, bool o) : buf(b), owned(o) { }
+		
+	};
+	class CachedBuffer {
+		Buffer *buf;
+		bool owned;
+		
+	public:
+		CachedBuffer(Buffer *b, bool o) : buf(b), owned(o) { }
+		~CachedBuffer() { if (owned) delete buf; }
+		
+		// Implement move semantics
+		CachedBuffer(CachedBufferRef r) : buf(r.buf), owned(r.owned) { }
+		operator CachedBufferRef() {
+			bool old = owned;
+			owned = false;
+			return CachedBufferRef(buf, old);
+		}
+		
+		Buffer* operator->() const { return buf; }
+		Buffer& operator*() const { return *buf; }
+	};
+	
+	
 	BlockCache(size_t maxSize = 0) : mMap(maxSize) { }
 	void maxSize(size_t s) { mMap.maxWeight(s); }
 	
-	const Buffer& getBlock(OpenCompressedFile& file, const Block& block);
+	CachedBuffer getBlock(OpenCompressedFile& file, const Block& block);
 	
 	void dump();
 };

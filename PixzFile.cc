@@ -96,18 +96,18 @@ void PixzFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
 	else if (err == LZMA_OPTIONS_ERROR)
 		throwFormat("unsupported options in block header");
 	else if (err != LZMA_OK)
-		throwFormat("unknown error in block header");
+		throw std::runtime_error("unknown error in block header");
 	
 	
 	// Decode the block
 	if (lzma_block_decoder(&mStream, &block) != LZMA_OK)
-		throwFormat("error initializing block decoder");
+		throw std::runtime_error("error initializing block decoder");
 	
 	ubuf.resize(b.usize);
 	mStream.next_out = &ubuf[0];
 	mStream.avail_out = ubuf.size();
 	if (code(fh) != LZMA_OK)
-		throwFormat("error decoding block");
+		throw std::runtime_error("error decoding block");
 }
 
 off_t PixzFile::uncompressedSize() const {
