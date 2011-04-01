@@ -1,5 +1,7 @@
 #include "LzopFile.h"
 
+#include "PathUtils.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -222,4 +224,12 @@ off_t LzopFile::uncompressedSize() const {
 		return 0;
 	const Block& b = mBlocks.back();
 	return b.uoff + b.usize;
+}
+
+std::string LzopFile::destName() const {
+	using namespace PathUtils;
+	std::string base = basename(path());
+	if (replaceExtension(base, "tzo", "tar")) return base;
+	if (removeExtension(base, "lzo")) return base;
+	return base;
 }

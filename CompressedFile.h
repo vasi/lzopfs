@@ -52,7 +52,6 @@ public:
 	virtual ~CompressedFile() { }
 	
 	virtual const std::string& path() const { return mPath; }
-	virtual std::string suffix() const = 0;
 	virtual std::string destName() const;
 	
 	virtual BlockIterator findBlock(off_t off) const = 0;

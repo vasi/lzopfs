@@ -1,5 +1,7 @@
 #include "PixzFile.h"
 
+#include "PathUtils.h"
+
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
@@ -137,4 +139,14 @@ CompressedFile::BlockIteratorInner *PixzFile::Iterator::dup() const {
 	
 	// Safe according to lzma_index_iter_init docs
 	return new Iterator(new lzma_index_iter(*mIter));
+}
+
+std::string PixzFile::destName() const {
+	using namespace PathUtils;
+	std::string base = basename(path());
+	if (replaceExtension(base, "tpxz", "tar")) return base;
+	if (replaceExtension(base, "txz", "tar")) return base;
+	if (removeExtension(base, "pxz")) return base;
+	if (removeExtension(base, "xz")) return base;
+	return base;
 }

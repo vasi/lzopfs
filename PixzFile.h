@@ -45,12 +45,10 @@ protected:
 public:
 	PixzFile(const std::string& path, uint64_t maxBlock);
 	virtual ~PixzFile();
-	
-	// FIXME! .tpxz
-	virtual std::string suffix() const { return "pxz"; }
+		
+	virtual std::string destName() const;
 	
 	virtual BlockIterator findBlock(off_t off) const;
-	
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf);
 	

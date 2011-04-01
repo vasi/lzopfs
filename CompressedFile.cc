@@ -7,9 +7,7 @@ void CompressedFile::throwFormat(const std::string& s) const {
 }
 
 std::string CompressedFile::destName() const {
-	std::string base = PathUtils::basename(path());
-	PathUtils::removeExtension(base, this->suffix());
-	return base;
+	return PathUtils::basename(path());
 }
 
 void CompressedFile::checkSizes(uint64_t maxBlock) const {
