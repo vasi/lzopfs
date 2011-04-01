@@ -11,7 +11,7 @@ CompressedFile *FileList::find(const std::string& dest) {
 }
 
 void FileList::add(const std::string& source) {
-	CompressedFile *file = new PixzFile(source);
+	CompressedFile *file = new LzopFile(source);
 	std::string dest("/");
 	dest.append(file->destName());
 	mMap[dest] = file;

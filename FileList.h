@@ -7,10 +7,17 @@
 #include <tr1/unordered_map>
 
 class FileList {
+private:
+	// Disable copying
+	FileList(const FileList& o);
+	FileList& operator=(const FileList& o);
+	
+protected:
 	typedef std::tr1::unordered_map<std::string,CompressedFile*> Map;
 	Map mMap;
 	
 public:
+	FileList() { }
 	virtual ~FileList();
 	
 	CompressedFile *find(const std::string& dest);

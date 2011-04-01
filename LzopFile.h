@@ -28,13 +28,13 @@ protected:
 	typedef std::vector<Block> BlockList;
 	BlockList mBlocks;
 	
-	class Iterator : public BlockIteratorInner {
+	class Iterator : public BlockIterator {
 		BlockList::const_iterator mIter, mEnd;
 	public:
 		Iterator(BlockList::const_iterator i, BlockList::const_iterator e)
 			: mIter(i), mEnd(e) { }
 		virtual void incr() { ++mIter; }
-		virtual const Block& deref() const { return *mIter; }
+		virtual const Block& operator*() const { return *mIter; }
 		virtual bool end() const { return mIter == mEnd; }
 	};
 	
@@ -52,7 +52,7 @@ public:
 	
 	virtual std::string suffix() const { return ".lzo"; }
 	
-	virtual BlockIterator findBlock(off_t off) const;
+	virtual BlockIterator* findBlock(off_t off) const;
 	
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf);

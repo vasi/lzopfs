@@ -4,28 +4,28 @@
 #include "lzopfs.h"
 #include "FileHandle.h"
 
+#include <algorithm>
 #include <string>
 
 class CompressedFile {
-protected:
-	struct BlockIteratorInner {
-		virtual ~BlockIteratorInner() { }
-		virtual void incr() = 0;
-		virtual const Block& deref() const = 0;
-		virtual bool end() const = 0;
-	};
-	
 public:
 	class BlockIterator {
-		BlockIteratorInner *mInner;
-	public:
-		BlockIterator(BlockIteratorInner *in) : mInner(in) { }
-		~BlockIterator() { delete mInner; }
+		// Disable copying
+		BlockIterator &operator=(const BlockIterator& o);
+		BlockIterator(const BlockIterator& o);
+	
+	protected:
+		virtual void incr() = 0;
 		
-		BlockIterator& operator++() { mInner->incr(); return *this; }
-		const Block& operator*() const { return mInner->deref(); }
+	public:
+		BlockIterator() { }
+		virtual ~BlockIterator() { }
+		
+		BlockIterator& operator++() { incr(); return *this; }
 		const Block *operator->() const { return &**this; }
-		bool end() const { return mInner->end(); }
+		
+		virtual const Block& operator*() const = 0;
+		virtual bool end() const = 0;
 	};
 	
 	struct FormatException : public virtual std::runtime_error {
@@ -48,7 +48,7 @@ public:
 	virtual std::string suffix() const = 0;
 	virtual std::string destName() const;
 	
-	virtual BlockIterator findBlock(off_t off) const = 0;
+	virtual BlockIterator *findBlock(off_t off) const = 0;
 	
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf) = 0;

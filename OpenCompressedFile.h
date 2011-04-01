@@ -8,6 +8,7 @@
 class BlockCache;
 
 class OpenCompressedFile {
+protected:
 	CompressedFile *mFile;
 	FileHandle mFH;
 	

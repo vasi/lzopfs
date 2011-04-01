@@ -8,33 +8,18 @@
 
 class PixzFile : public CompressedFile {
 protected:	
-	class Iterator : public BlockIteratorInner {
+	class Iterator : public BlockIterator {
 		lzma_index_iter *mIter;
 		Block mBlock;
 		bool mEnd;
 		
+		virtual void makeBlock();
+		
 	public:
-		Iterator(lzma_index_iter *i) : mIter(i), mEnd(false) {
-			makeBlock();
-		}
+		Iterator(lzma_index_iter *i) : mIter(i), mEnd(false) { makeBlock(); }
 		virtual ~Iterator() { delete mIter; }
-		
-		virtual void makeBlock() {
-			mBlock.coff = mIter->block.compressed_file_offset;
-			mBlock.uoff = mIter->block.uncompressed_file_offset;
-			mBlock.csize = mIter->block.total_size;
-			mBlock.usize = mIter->block.uncompressed_size;			
-		}
-		
-		virtual void incr() {
-			if (mEnd || lzma_index_iter_next(
-					mIter, LZMA_INDEX_ITER_NONEMPTY_BLOCK))
-				mEnd = true;
-			else
-				makeBlock();
-		}
-		
-		virtual const Block& deref() const { return mBlock; }
+		virtual void incr();
+		virtual const Block& operator*() const { return mBlock; }
 		virtual bool end() const { return mEnd; }
 	};
 	
@@ -59,7 +44,7 @@ public:
 	// FIXME! .tpxz
 	virtual std::string suffix() const { return ".pxz"; }
 	
-	virtual BlockIterator findBlock(off_t off) const;
+	virtual BlockIterator* findBlock(off_t off) const;
 	
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf);

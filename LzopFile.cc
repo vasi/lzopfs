@@ -184,12 +184,12 @@ struct BlockOffsetOrdering {
 };
 }
 
-CompressedFile::BlockIterator LzopFile::findBlock(off_t off) const {
+CompressedFile::BlockIterator *LzopFile::findBlock(off_t off) const {
 	BlockList::const_iterator iter = std::lower_bound(
 		mBlocks.begin(), mBlocks.end(), off, BlockOffsetOrdering());
 	if (iter == mBlocks.end())
 		throw std::runtime_error("can't find block");
-	return BlockIterator(new Iterator(iter, mBlocks.end()));
+	return new Iterator(iter, mBlocks.end());
 }
 
 void LzopFile::decompressBlock(FileHandle& fh, const Block& b,

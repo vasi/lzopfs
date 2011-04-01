@@ -9,6 +9,11 @@
 #include <fcntl.h>
 
 class FileHandle {
+private:
+	// Disable copying
+	FileHandle(const FileHandle& o);
+	FileHandle& operator=(const FileHandle& o);
+
 protected:
 	std::string mPath;
 	int mFD;
@@ -32,6 +37,7 @@ public:
 	FileHandle(int fd = -1) : mFD(fd), mOwnFD(false) { }
 	FileHandle(const std::string& path, int flags, mode_t mode = 0444);
 	void open(const std::string& path, int flags, mode_t mode = 0444);
+	
 	virtual ~FileHandle();
 	
 	void read(void *buf, size_t size);

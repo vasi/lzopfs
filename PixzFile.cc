@@ -45,12 +45,12 @@ PixzFile::~PixzFile() {
 	lzma_end(&mStream);
 }
 
-CompressedFile::BlockIterator PixzFile::findBlock(off_t off) const {
+CompressedFile::BlockIterator* PixzFile::findBlock(off_t off) const {
 	lzma_index_iter *liter = new lzma_index_iter();
 	lzma_index_iter_init(liter, mIndex);
 	if (lzma_index_iter_locate(liter, off))
 		throw std::runtime_error("can't find block");
-	return BlockIterator(new Iterator(liter));
+	return new Iterator(liter);
 }
 
 // Output should be already set up
@@ -112,4 +112,20 @@ void PixzFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
 
 off_t PixzFile::uncompressedSize() const {
 	return lzma_index_uncompressed_size(mIndex);
+}
+
+void PixzFile::Iterator::makeBlock() {
+	mBlock.coff = mIter->block.compressed_file_offset;
+	mBlock.uoff = mIter->block.uncompressed_file_offset;
+	mBlock.csize = mIter->block.total_size;
+	mBlock.usize = mIter->block.uncompressed_size;			
+}
+
+void PixzFile::Iterator::incr() {
+	if (mEnd || lzma_index_iter_next(
+			mIter, LZMA_INDEX_ITER_NONEMPTY_BLOCK)) {
+		mEnd = true;
+	} else {
+		makeBlock();
+	}
 }

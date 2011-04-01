@@ -5,3 +5,8 @@
 	- Decompression threads
 	- Multiple in-flight requests?
 - Checksum blocks on decompression?
+
+- Cache overflow with really-large blocks
+- Suffixes like tgz
+
+- Way out there: Hierarchy based on tpxz files?

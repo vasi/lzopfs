@@ -7,7 +7,7 @@ SetOption('num_jobs', os.sysconf('SC_NPROCESSORS_ONLN'))
 
 env = Environment(
     LINKFLAGS = '-g',
-    CPPFLAGS = '-Wall -g')
+    CPPFLAGS = '-Wall -g -O0')
 
 conf = Configure(env, help = False, config_h = 'config.h',
     custom_tests = { 'CheckPkg': CheckPkg, 'CheckMac': CheckMac })
