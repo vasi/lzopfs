@@ -7,7 +7,7 @@
 const FileList::OpenerList FileList::Openers(initOpeners());
 
 FileList::OpenerList FileList::initOpeners() {
-	OpenFunc o[] = { LzopFile::open, PixzFile::open, GzipFile::open };
+	OpenFunc o[] = { LzopFile::open, GzipFile::open, PixzFile::open };
 	return OpenerList(o, o + sizeof(o)/sizeof(o[0]));
 }
 
