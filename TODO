@@ -1,12 +1,12 @@
 - Write README
-- Add support for other compression formats (pixz, pigz, bzip2)
+- Add support for other compression formats (pigz, bzip2)
+- Detect file types
 - Remove debug messages
 - Multi-threaded
 	- Decompression threads
 	- Multiple in-flight requests?
 - Checksum blocks on decompression?
 
-- Cache overflow with really-large blocks
-- Suffixes like tgz
+- Suffixes like tgz, xz...
 
 - Way out there: Hierarchy based on tpxz files?
