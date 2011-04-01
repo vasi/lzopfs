@@ -1,12 +1,9 @@
 - Write README
 - Add support for other compression formats (pigz, bzip2)
-- Detect file types
 - Remove debug messages
 - Multi-threaded
 	- Decompression threads
 	- Multiple in-flight requests?
 - Checksum blocks on decompression?
-
-- Suffixes like tgz, xz...
 
 - Way out there: Hierarchy based on tpxz files?

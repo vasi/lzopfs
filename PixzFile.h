@@ -43,6 +43,9 @@ protected:
 	lzma_ret code(FileHandle& fh);
 		
 public:
+	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
+		{ return new PixzFile(path, maxBlock); }
+	
 	PixzFile(const std::string& path, uint64_t maxBlock);
 	virtual ~PixzFile();
 		

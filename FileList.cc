@@ -3,6 +3,14 @@
 #include "LzopFile.h"
 #include "PixzFile.h"
 
+const FileList::OpenerList FileList::Openers(initOpeners());
+
+FileList::OpenerList FileList::initOpeners() {
+	OpenFunc o[] = { LzopFile::open, PixzFile::open };
+	return OpenerList(o, o + sizeof(o)/sizeof(o[0]));
+}
+
+
 CompressedFile *FileList::find(const std::string& dest) {
 	Map::iterator found = mMap.find(dest);
 	if (found == mMap.end())
@@ -11,10 +19,30 @@ CompressedFile *FileList::find(const std::string& dest) {
 }
 
 void FileList::add(const std::string& source) {
-	CompressedFile *file = new PixzFile(source, mMaxBlockSize);
-	std::string dest("/");
-	dest.append(file->destName());
-	mMap[dest] = file;
+	CompressedFile *file = 0;
+	try {
+		OpenerList::const_iterator iter;
+		for (iter = Openers.begin(); iter != Openers.end(); ++iter) {
+			try {
+				file = (*iter)(source, mMaxBlockSize);
+				break;
+			} catch (CompressedFile::FormatException& e) {
+				// just keep going
+			}
+		}
+		if (!file) {
+			fprintf(stderr, "Don't understand format of file %s, skipping.\n",
+				source.c_str());
+			return;
+		}
+		
+		std::string dest("/");
+		dest.append(file->destName());
+		mMap[dest] = file;		
+	} catch (std::runtime_error& e) {
+		fprintf(stderr, "Error reading file  %s, skipping: %s\n",
+			source.c_str(), e.what());
+	}
 }
 
 FileList::~FileList() {

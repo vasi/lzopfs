@@ -50,6 +50,9 @@ protected:
 	void writeIndex() const;
 	
 public:
+	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
+		{ return new LzopFile(path, maxBlock); }
+	
 	LzopFile(const std::string& path, uint64_t maxBlock);
 	
 	virtual std::string destName() const;
