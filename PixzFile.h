@@ -47,7 +47,7 @@ public:
 	virtual ~PixzFile();
 	
 	// FIXME! .tpxz
-	virtual std::string suffix() const { return ".pxz"; }
+	virtual std::string suffix() const { return "pxz"; }
 	
 	virtual BlockIterator findBlock(off_t off) const;
 	

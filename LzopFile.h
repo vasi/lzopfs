@@ -52,7 +52,7 @@ protected:
 public:
 	LzopFile(const std::string& path, uint64_t maxBlock);
 	
-	virtual std::string suffix() const { return ".lzo"; }
+	virtual std::string suffix() const { return "lzo"; }
 	
 	virtual BlockIterator findBlock(off_t off) const;
 	
