@@ -24,22 +24,7 @@ protected:
 	static const char Magic[];
 	static const uint16_t LzopDecodeVersion;
 	
-	
-	typedef std::vector<Block> BlockList;
-	BlockList mBlocks;
-	uint32_t mFlags;
-	
-	class Iterator : public BlockIteratorInner {
-		BlockList::const_iterator mIter, mEnd;
-	public:
-		Iterator(BlockList::const_iterator i, BlockList::const_iterator e)
-			: mIter(i), mEnd(e) { }
-		virtual void incr() { ++mIter; }
-		virtual const Block& deref() const { return *mIter; }
-		virtual bool end() const { return mIter == mEnd; }
-		virtual BlockIteratorInner *dup() const
-			{ return new Iterator(mIter, mEnd); }
-	};
+	uint32_t mFlags;	
 	
 	
 	void parseHeaders(FileHandle& fh, uint32_t& flags);
@@ -58,11 +43,8 @@ public:
 	
 	virtual std::string destName() const;
 	
-	virtual BlockIterator findBlock(off_t off) const;
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf);
-	
-	virtual off_t uncompressedSize() const;
 };
 
 #endif // LZOPFILE_H

@@ -68,6 +68,23 @@ public:
 		: CompressedFile(path) { }
 
 protected:	
+	typedef std::vector<Block> BlockList;
+	BlockList mBlocks;	
+	
+	
+	class Iterator : public BlockIteratorInner {
+		BlockList::const_iterator mIter, mEnd;
+	public:
+		Iterator(BlockList::const_iterator i, BlockList::const_iterator e)
+			: mIter(i), mEnd(e) { }
+		virtual void incr() { ++mIter; }
+		virtual const Block& deref() const { return *mIter; }
+		virtual bool end() const { return mIter == mEnd; }
+		virtual BlockIteratorInner *dup() const
+			{ return new Iterator(mIter, mEnd); }
+	};
+	
+	
 	virtual std::string indexPath() const;
 	virtual void initialize(uint64_t maxBlock);
 	
@@ -75,6 +92,9 @@ protected:
 	virtual bool readIndex(FileHandle& fh) = 0;
 	virtual void buildIndex(FileHandle& fh) = 0;
 	virtual void writeIndex(FileHandle& fh) const = 0;
+	
+	virtual BlockIterator findBlock(off_t off) const;
+	virtual off_t uncompressedSize() const;
 };
 
 #endif // COMPRESSEDFILE_H

@@ -49,3 +49,31 @@ void IndexedCompFile::initialize(uint64_t maxBlock) {
 std::string IndexedCompFile::indexPath() const {
 	return path() + ".blockIdx";
 }
+
+namespace {
+struct BlockOffsetOrdering {
+	bool operator()(const Block& b, off_t off) {
+		return (b.uoff + b.usize - 1) < (uint64_t)off;
+	}
+	
+	bool operator()(off_t off, const Block& b) {
+		return (uint64_t)off < b.uoff;
+	}
+};
+}
+
+CompressedFile::BlockIterator IndexedCompFile::findBlock(off_t off) const {
+	BlockList::const_iterator iter = std::lower_bound(
+		mBlocks.begin(), mBlocks.end(), off, BlockOffsetOrdering());
+	if (iter == mBlocks.end())
+		throw std::runtime_error("can't find block");
+	return BlockIterator(new Iterator(iter, mBlocks.end()));
+}
+
+off_t IndexedCompFile::uncompressedSize() const {
+	if (mBlocks.empty())
+		return 0;
+	const Block& b = mBlocks.back();
+	return b.uoff + b.usize;
+}
+

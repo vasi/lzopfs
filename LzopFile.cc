@@ -154,26 +154,6 @@ void LzopFile::writeIndex(FileHandle& fh) const {
 	fprintf(stderr, "Wrote index\n");
 }
 
-namespace {
-struct BlockOffsetOrdering {
-	bool operator()(const Block& b, off_t off) {
-		return (b.uoff + b.usize - 1) < (uint64_t)off;
-	}
-	
-	bool operator()(off_t off, const Block& b) {
-		return (uint64_t)off < b.uoff;
-	}
-};
-}
-
-CompressedFile::BlockIterator LzopFile::findBlock(off_t off) const {
-	BlockList::const_iterator iter = std::lower_bound(
-		mBlocks.begin(), mBlocks.end(), off, BlockOffsetOrdering());
-	if (iter == mBlocks.end())
-		throw std::runtime_error("can't find block");
-	return BlockIterator(new Iterator(iter, mBlocks.end()));
-}
-
 void LzopFile::decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf) {
 	fh.seek(b.coff, SEEK_SET);	
@@ -194,13 +174,6 @@ void LzopFile::decompressBlock(FileHandle& fh, const Block& b,
 		fprintf(stderr, "lzo err: %d\n", err);
 		throw std::runtime_error("decompression error");
 	}
-}
-
-off_t LzopFile::uncompressedSize() const {
-	if (mBlocks.empty())
-		return 0;
-	const Block& b = mBlocks.back();
-	return b.uoff + b.usize;
 }
 
 std::string LzopFile::destName() const {
