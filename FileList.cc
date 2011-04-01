@@ -2,11 +2,12 @@
 
 #include "LzopFile.h"
 #include "PixzFile.h"
+#include "GzipFile.h"
 
 const FileList::OpenerList FileList::Openers(initOpeners());
 
 FileList::OpenerList FileList::initOpeners() {
-	OpenFunc o[] = { LzopFile::open, PixzFile::open };
+	OpenFunc o[] = { LzopFile::open, PixzFile::open, GzipFile::open };
 	return OpenerList(o, o + sizeof(o)/sizeof(o[0]));
 }
 
@@ -40,7 +41,7 @@ void FileList::add(const std::string& source) {
 		dest.append(file->destName());
 		mMap[dest] = file;		
 	} catch (std::runtime_error& e) {
-		fprintf(stderr, "Error reading file  %s, skipping: %s\n",
+		fprintf(stderr, "Error reading file %s, skipping: %s\n",
 			source.c_str(), e.what());
 	}
 }
