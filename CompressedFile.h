@@ -39,6 +39,7 @@ protected:
 	std::string mPath;
 	
 	virtual void throwFormat(const std::string& s) const;
+	virtual void checkSizes(uint64_t maxBlock) const;
 
 public:
 	CompressedFile(const std::string& path) : mPath(path) { }

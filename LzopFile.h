@@ -48,7 +48,7 @@ protected:
 	void writeIndex() const;
 	
 public:
-	LzopFile(const std::string& path);
+	LzopFile(const std::string& path, uint64_t maxBlock);
 	
 	virtual std::string suffix() const { return ".lzo"; }
 	

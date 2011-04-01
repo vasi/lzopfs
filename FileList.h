@@ -15,9 +15,11 @@ private:
 protected:
 	typedef std::tr1::unordered_map<std::string,CompressedFile*> Map;
 	Map mMap;
+	uint64_t mMaxBlockSize;
 	
 public:
-	FileList() { }
+	FileList(uint64_t maxBlockSize = UINT64_MAX)
+		: mMaxBlockSize(maxBlockSize) { }
 	virtual ~FileList();
 	
 	CompressedFile *find(const std::string& dest);

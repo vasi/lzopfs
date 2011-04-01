@@ -38,7 +38,7 @@ protected:
 	lzma_ret code(FileHandle& fh);
 		
 public:
-	PixzFile(const std::string& path);
+	PixzFile(const std::string& path, uint64_t maxBlock);
 	virtual ~PixzFile();
 	
 	// FIXME! .tpxz

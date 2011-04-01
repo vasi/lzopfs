@@ -123,7 +123,8 @@ namespace {
 	bool gLzopInited = false;
 }
 
-LzopFile::LzopFile(const std::string& path) : CompressedFile(path) {
+LzopFile::LzopFile(const std::string& path, uint64_t maxBlock)
+		: CompressedFile(path) {
 	if (!gLzopInited) {
 		lzo_init();
 		gLzopInited = true;
@@ -133,6 +134,8 @@ LzopFile::LzopFile(const std::string& path) : CompressedFile(path) {
 		parseBlocks();
 		writeIndex();
 	}
+	
+	checkSizes(maxBlock);
 	fprintf(stderr, "Ready\n");
 }
 

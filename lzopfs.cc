@@ -22,7 +22,7 @@ const size_t CacheSize = 1024 * 1024 * 32;
 
 const char *gNextSource = 0;
 BlockCache gBlockCache;
-FileList gFiles;
+FileList gFiles(CacheSize);
 pthread_mutex_t gReadMutex = PTHREAD_MUTEX_INITIALIZER;
 
 void except(std::runtime_error& e) {
