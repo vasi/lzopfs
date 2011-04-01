@@ -18,8 +18,8 @@ const char LzopFile::Magic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 // Version of lzop we emulate
 const uint16_t LzopFile::LzopDecodeVersion = 0x1010;
 
-void LzopFile::parseHeader(FileHandle& fh, uint32_t& flags) {
-	try {		
+void LzopFile::checkFileType(FileHandle& fh) {
+	try {
 		// Check magic
 		Buffer magic;
 		fh.read(magic, sizeof(Magic));
@@ -38,10 +38,10 @@ void LzopFile::parseHeader(FileHandle& fh, uint32_t& flags) {
 		fh.readBE(method);
 		fh.readBE(level);
 		
-		fh.readBE(flags);
-		if (flags & MultiPart)
+		fh.readBE(mFlags);
+		if (mFlags & MultiPart)
 			throwFormat("multi-part archives not supported");
-		if (flags & Filter)
+		if (mFlags & Filter)
 			throwFormat("filter not supported");
 		
 		fh.seek(3 * sizeof(uint32_t)); // skip mode, mtimes
@@ -60,11 +60,11 @@ void LzopFile::parseHeader(FileHandle& fh, uint32_t& flags) {
 		
 		Checksum cksum;
 		fh.readBE(cksum);
-		if (cksum != checksum((flags & HeaderCRC) ? CRC : Adler, header))
+		if (cksum != checksum((mFlags & HeaderCRC) ? CRC : Adler, header))
 			throwFormat("checksum mismatch");
 		
 		
-		if (flags & ExtraField) { // unused?
+		if (mFlags & ExtraField) { // unused?
 			uint32_t extraSize;
 			fh.readBE(extraSize);
 			fh.seek(extraSize + sizeof(Checksum));
@@ -79,17 +79,13 @@ LzopFile::Checksum LzopFile::checksum(ChecksumType type, const Buffer& buf) {
 	return (type == CRC ? lzo_crc32 : lzo_adler32)(init, &buf[0], buf.size());
 }
 
-void LzopFile::parseBlocks() {
-	uint32_t flags;
-	FileHandle fh(mPath, O_RDONLY);
-	parseHeader(fh, flags);
-	
+void LzopFile::buildIndex(FileHandle& fh) {	
 	// How much space for checksums?
 	size_t csums = 0, usums = 0;
-	if (flags & CRCComp) ++csums;
-	if (flags & AdlerComp) ++csums;
-	if (flags & CRCDec) ++usums;
-	if (flags & AdlerDec) ++usums;
+	if (mFlags & CRCComp) ++csums;
+	if (mFlags & AdlerComp) ++csums;
+	if (mFlags & CRCDec) ++usums;
+	if (mFlags & AdlerDec) ++usums;
 	csums *= sizeof(uint32_t);
 	usums *= sizeof(uint32_t);
 	
@@ -117,39 +113,21 @@ void LzopFile::parseBlocks() {
 	}
 }
 
-std::string LzopFile::indexPath() const {
-	return mPath + ".blockIdx";
-}
-
 namespace {
 	bool gLzopInited = false;
 }
 
 LzopFile::LzopFile(const std::string& path, uint64_t maxBlock)
-		: CompressedFile(path) {
+		: IndexedCompFile(path) {
 	if (!gLzopInited) {
 		lzo_init();
 		gLzopInited = true;
 	}
-	
-	if (!readIndex()) {
-		parseBlocks();
-		writeIndex();
-	}
-	
-	checkSizes(maxBlock);
-	fprintf(stderr, "Ready\n");
+	initialize(maxBlock);
 }
 
 // True on success
-bool LzopFile::readIndex() {
-	FileHandle fh;
-	try {
-		fh.open(indexPath(), O_RDONLY);
-	} catch (FileHandle::Exception& e) {
-		return false;
-	}
-	
+bool LzopFile::readIndex(FileHandle& fh) {
 	uint32_t usize, csize;
 	uint64_t uoff = 0, coff;
 	while (true) {
@@ -164,8 +142,7 @@ bool LzopFile::readIndex() {
 	}
 }
 
-void LzopFile::writeIndex() const {
-	FileHandle fh(indexPath(), O_WRONLY | O_CREAT, 0664);
+void LzopFile::writeIndex(FileHandle& fh) const {
 	for (BlockList::const_iterator iter = mBlocks.begin();
 			iter != mBlocks.end(); ++iter) {
 		fh.writeBE(iter->usize);

@@ -4,7 +4,7 @@
 #include "lzopfs.h"
 #include "CompressedFile.h"
 
-class LzopFile : public CompressedFile {
+class LzopFile : public IndexedCompFile {
 protected:
 	typedef uint32_t Checksum;
 	
@@ -27,6 +27,7 @@ protected:
 	
 	typedef std::vector<Block> BlockList;
 	BlockList mBlocks;
+	uint32_t mFlags;
 	
 	class Iterator : public BlockIteratorInner {
 		BlockList::const_iterator mIter, mEnd;
@@ -41,13 +42,13 @@ protected:
 	};
 	
 	
-	void parseHeader(FileHandle& fh, uint32_t& flags);
+	void parseHeaders(FileHandle& fh, uint32_t& flags);
 	Checksum checksum(ChecksumType type, const Buffer& buf);
 	
-	void parseBlocks();
-	std::string indexPath() const;
-	bool readIndex();
-	void writeIndex() const;
+	virtual void checkFileType(FileHandle &fh);
+	virtual bool readIndex(FileHandle& fh);
+	virtual void buildIndex(FileHandle& fh);
+	virtual void writeIndex(FileHandle& fh) const;
 	
 public:
 	static CompressedFile* open(const std::string& path, uint64_t maxBlock)

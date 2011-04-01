@@ -37,6 +37,7 @@ public:
 	FileHandle(int fd = -1) : mFD(fd), mOwnFD(false) { }
 	FileHandle(const std::string& path, int flags, mode_t mode = 0444);
 	void open(const std::string& path, int flags, mode_t mode = 0444);
+	bool open() const { return mFD != -1; }
 	
 	virtual ~FileHandle();
 	

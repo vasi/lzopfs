@@ -62,4 +62,19 @@ public:
 	virtual off_t uncompressedSize() const = 0;
 };
 
+class IndexedCompFile : public CompressedFile {
+public:
+	IndexedCompFile(const std::string& path)
+		: CompressedFile(path) { }
+
+protected:	
+	virtual std::string indexPath() const;
+	virtual void initialize(uint64_t maxBlock);
+	
+	virtual void checkFileType(FileHandle &fh) = 0;
+	virtual bool readIndex(FileHandle& fh) = 0;
+	virtual void buildIndex(FileHandle& fh) = 0;
+	virtual void writeIndex(FileHandle& fh) const = 0;
+};
+
 #endif // COMPRESSEDFILE_H
