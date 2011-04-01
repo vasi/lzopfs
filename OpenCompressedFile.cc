@@ -14,26 +14,17 @@ void OpenCompressedFile::decompressBlock(const Block& b, Buffer& ubuf) {
 ssize_t OpenCompressedFile::read(BlockCache& cache,
 		char *buf, size_t size, off_t offset) {
 	char *p = buf;
-	CompressedFile::BlockIterator *biter = 0;
-	try {
- 		biter = mFile->findBlock(offset);
-		for (; size > 0 && !biter->end(); ++*biter) {
-			BlockCache::CachedBuffer ubuf = cache.getBlock(*this, **biter);
-			size_t bstart = offset - (*biter)->uoff;
-			size_t bsize = std::min(size, ubuf->size() - bstart);
-			memcpy(p, &(*ubuf)[bstart], bsize);
+	CompressedFile::BlockIterator biter = mFile->findBlock(offset);
+	for (; size > 0 && !biter.end(); ++biter) {
+		BlockCache::CachedBuffer ubuf = cache.getBlock(*this, *biter);
+		size_t bstart = offset - biter->uoff;
+		size_t bsize = std::min(size, ubuf->size() - bstart);
+		memcpy(p, &(*ubuf)[bstart], bsize);
 
-			p += bsize;
-			offset += bsize;
-			size -= bsize;
-		}
-	} catch (...) {
-		if (biter)
-			delete biter;
-		throw;
+		p += bsize;
+		offset += bsize;
+		size -= bsize;
 	}
-	if (biter)
-		delete biter;
 	
 	// cache.dump();
 	return p - buf;

@@ -12,20 +12,11 @@ std::string CompressedFile::destName() const {
 }
 
 void CompressedFile::checkSizes(uint64_t maxBlock) const {
-	BlockIterator *iter = 0;
-	try {
-		for (iter = this->findBlock(0); !iter->end(); ++*iter) {
-			if ((*iter)->usize > maxBlock) {
-				fprintf(stderr, "WARNING: %s has blocks too large to cache, "
-					"operations on it will be slow!\n", path().c_str());
-				break;
-			}
+	for (BlockIterator iter = this->findBlock(0); !iter.end(); ++iter) {
+		if (iter->usize > maxBlock) {
+			fprintf(stderr, "WARNING: %s has blocks too large to cache, "
+				"operations on it will be slow!\n", path().c_str());
+			break;
 		}
-	} catch (...) {
-		if (iter)
-			delete iter;
-		throw;
 	}
-	if (iter)
-		delete iter;
 }

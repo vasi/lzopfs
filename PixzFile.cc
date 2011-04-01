@@ -34,7 +34,6 @@ PixzFile::PixzFile(const std::string& path, uint64_t maxBlock)
 			throwFormat("error initializing index decoder");
 		if (code(fh) != LZMA_OK)
 			throwFormat("error decoding index");
-		// FIXME: deal with unblocked!!!
 	} catch (FileHandle::EOFException& e) {
 		throwFormat("EOF");
 	}
@@ -47,12 +46,12 @@ PixzFile::~PixzFile() {
 	lzma_end(&mStream);
 }
 
-CompressedFile::BlockIterator* PixzFile::findBlock(off_t off) const {
+CompressedFile::BlockIterator PixzFile::findBlock(off_t off) const {
 	lzma_index_iter *liter = new lzma_index_iter();
 	lzma_index_iter_init(liter, mIndex);
 	if (lzma_index_iter_locate(liter, off))
 		throw std::runtime_error("can't find block");
-	return new Iterator(liter);
+	return BlockIterator(new Iterator(liter));
 }
 
 // Output should be already set up
@@ -130,4 +129,12 @@ void PixzFile::Iterator::incr() {
 	} else {
 		makeBlock();
 	}
+}
+
+CompressedFile::BlockIteratorInner *PixzFile::Iterator::dup() const {
+	if (mEnd)
+		return new Iterator();
+	
+	// Safe according to lzma_index_iter_init docs
+	return new Iterator(new lzma_index_iter(*mIter));
 }

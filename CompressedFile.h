@@ -9,23 +9,29 @@
 
 class CompressedFile {
 public:
-	class BlockIterator {
-		// Disable copying
-		BlockIterator &operator=(const BlockIterator& o);
-		BlockIterator(const BlockIterator& o);
-	
-	protected:
-		virtual void incr() = 0;
-		
+	class BlockIteratorInner {
 	public:
-		BlockIterator() { }
-		virtual ~BlockIterator() { }
-		
-		BlockIterator& operator++() { incr(); return *this; }
-		const Block *operator->() const { return &**this; }
-		
-		virtual const Block& operator*() const = 0;
+		virtual void incr() = 0;
 		virtual bool end() const = 0;
+		virtual const Block& deref() const = 0;
+		virtual BlockIteratorInner *dup() const = 0;
+	};
+	
+	class BlockIterator {
+		BlockIteratorInner *mInner;
+	
+	public:
+		BlockIterator(BlockIteratorInner *i) : mInner(i) { }
+		virtual ~BlockIterator() { delete mInner; }
+		
+		BlockIterator& operator++() { mInner->incr(); return *this; }
+		const Block *operator->() const { return &**this; }
+		const Block& operator*() const { return mInner->deref(); }
+		bool end() const { return mInner->end(); }
+				
+		BlockIterator(const BlockIterator& o) : mInner(o.mInner->dup()) { }
+		BlockIterator &operator=(BlockIterator o)
+			{ std::swap(mInner, o.mInner); return *this; }
 	};
 	
 	struct FormatException : public virtual std::runtime_error {
@@ -49,7 +55,7 @@ public:
 	virtual std::string suffix() const = 0;
 	virtual std::string destName() const;
 	
-	virtual BlockIterator *findBlock(off_t off) const = 0;
+	virtual BlockIterator findBlock(off_t off) const = 0;
 	
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf) = 0;
