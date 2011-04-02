@@ -53,6 +53,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 		if (err == Z_OK || err == Z_STREAM_END) {
 			if (indep) {
 				if (rd.obytes() > WindowSize) { // Yay, uoff block is indep!
+					fprintf(stderr, "...ok, adding!\n");
 					addBlock(uoff, coff, bits);
 					lastIdx = uoff;
 					indep = false;
@@ -61,7 +62,13 @@ void GzipFile::buildIndex(FileHandle& fh) {
 						continue; // Go to next block after uoff
 					}
 					// If !backtrack, continue from where we're at 
+				} else if (rd.obytes() == 0) { // Zero-length block, ignore
+					fprintf(stderr, "zero, rewinding!\n");
+					indep = false;
+					rd.restore();
+					continue;
 				} else {
+					fprintf(stderr, "(backtrack)\n");
 					// Mark that there's a block between uoff and window end
 					backtrack = true;
 				}
@@ -71,6 +78,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 				uoff = rd.opos();
 				coff = rd.ipos();
 				bits = rd.ibits();
+				fprintf(stderr, "Checking %lld, %lld\n", uoff, coff);
 				rd.save();
 				backtrack = false;
 				indep = true;
@@ -80,10 +88,12 @@ void GzipFile::buildIndex(FileHandle& fh) {
 				throwFormat(rd.zerr("gzip decode", err));
 			
 			if (indep) { // Indep decode failed, so rewind
+				fprintf(stderr, "...failed, rewinding!\n");
 				indep = false;
 				rd.restore();
 				if (rd.opos() - lastIdx > MinDictBlockSize) {
 					// Add a dict block
+					fprintf(stderr, "Dict block\n");
 					Buffer& dict = addBlock(rd.opos(), rd.ipos(), rd.ibits());
 					rd.copyWindow(dict);
 					lastIdx = rd.opos();
@@ -92,7 +102,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 		}
 	} while (err != Z_STREAM_END);
 	setLastBlockSize(rd.opos(), rd.ipos());	
-//	dumpBlocks();
+	dumpBlocks();
 }
 
 GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)
