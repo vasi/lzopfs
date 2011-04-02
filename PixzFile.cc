@@ -7,8 +7,6 @@
 
 const uint64_t PixzFile::MemLimit = UINT64_MAX;
 
-const size_t PixzFile::ChunkSize = 4096;
-
 PixzFile::PixzFile(const std::string& path, uint64_t maxBlock)
 		: CompressedFile(path), mIndex(0) {
 	// As required in lzma/base.h

@@ -2,6 +2,8 @@
 
 #include "PathUtils.h"
 
+const size_t CompressedFile::ChunkSize = 4096;
+
 void CompressedFile::throwFormat(const std::string& s) const {
 	throw FormatException(mPath, s);
 }

@@ -9,6 +9,9 @@
 
 class CompressedFile {
 public:
+	static const size_t ChunkSize; // for input buffers
+	
+	
 	class BlockIteratorInner {
 	public:
 		virtual void incr() = 0;
@@ -33,6 +36,7 @@ public:
 		BlockIterator &operator=(BlockIterator o)
 			{ std::swap(mInner, o.mInner); return *this; }
 	};
+	
 	
 	struct FormatException : public virtual std::runtime_error {
 		std::string file;

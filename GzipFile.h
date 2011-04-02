@@ -8,11 +8,14 @@
 
 class GzipFile : public IndexedCompFile {
 protected:
-	static const size_t Chunk;
+	static const size_t WindowSize;
 	
 	z_stream mStream;
+	Buffer mInBuf;
 	
 	void setupStream(z_stream& s);
+	void ensureInput(z_stream& s, FileHandle& fh);
+	bool ensureOutput(z_stream& s, Buffer& w, bool force = false);
 	
 	
 	class Iterator : public BlockIteratorInner {
@@ -35,6 +38,7 @@ public:
 		{ return new GzipFile(path, maxBlock); }
 	
 	GzipFile(const std::string& path, uint64_t maxBlock);
+	virtual ~GzipFile() { inflateEnd(&mStream); }
 	
 	virtual std::string destName() const;
 	

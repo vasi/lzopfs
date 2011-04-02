@@ -30,7 +30,6 @@ protected:
 	
 	
 	static const uint64_t MemLimit;
-	static const size_t ChunkSize;
 	
 	
 	lzma_index *mIndex;
