@@ -12,9 +12,7 @@ private:
 	GzipReader(const GzipReader& o);
 	GzipReader& operator=(const GzipReader& o);
 	
-public:
-	static const size_t WindowSize;	
-	
+public:	
 	struct Exception : std::runtime_error {
 		Exception(const std::string& s) : std::runtime_error(s) { }
 	};

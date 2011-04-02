@@ -58,7 +58,9 @@ void FileHandle::read(Buffer& buf, size_t size) {
 
 size_t FileHandle::tryRead(Buffer& buf, size_t size) {
 	buf.resize(size);
-	return tryRead(&buf[0], size);
+	size_t bytes = tryRead(&buf[0], size);
+	buf.resize(bytes);
+	return bytes;
 }
 
 size_t FileHandle::tryRead(void *buf, size_t size) {

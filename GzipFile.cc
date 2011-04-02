@@ -2,6 +2,9 @@
 
 #include "PathUtils.h"
 
+const size_t GzipFile::WindowSize = 1 << MAX_WBITS; 
+const uint64_t GzipFile::MaxDictBlockSize = 32 * WindowSize; 
+
 void GzipFile::checkFileType(FileHandle& fh) {
 	try {
 		GzipHeaderReader rd(fh);
@@ -14,114 +17,46 @@ void GzipFile::checkFileType(FileHandle& fh) {
 	}
 }
 
+#include <typeinfo>
+
 void GzipFile::buildIndex(FileHandle& fh) {
+try {
 	fh.seek(0, SEEK_SET);
 	GzipReader rd(fh, GzipReader::Gzip);
 	
 	int err;
-	bool rewind = false;
+	bool indep = false;
+	off_t bin, bout;
 	do {
 		err = rd.block();
 		if (err != Z_OK && err != Z_STREAM_END) {
-			if (rewind) {
-				fprintf(stderr, "failure, rewinding!\n");
-				rewind = false;
+			if (indep) { // can't decode this one, rewind!
 				rd.restore();
+				indep = false;
 			} else {
 				fprintf(stderr, "%s\n", rd.zerr("ERR", err).c_str());
 				exit(1);
 			}
 		} else {
-			fprintf(stderr, "block: in = %9lld, out = %9lld\n",
-				rd.ipos(), rd.opos());
-			if (rd.opos() == 128 * 1024) {
-				fprintf(stderr, "saving!\n");
+			if (indep && rd.obytes() > WindowSize) { // it's good!
+				fprintf(stderr, "indep block: in = %9lld, out = %9lld\n",
+					bin, bout);
+				indep = false;
+			}
+			if (!indep) { // check if this block can be independently decoded
+				bin = rd.ipos();
+				bout = rd.opos();
 				rd.save();
-				rewind = true;
+				indep = true;
 			}
 		}
 	} while (err != Z_STREAM_END);
-	
-	fprintf(stderr, "got here!\n");
+	fprintf(stderr, "end: in = %9lld, out = %9lld\n", rd.ipos(), rd.opos());
 	exit(1);
-	
-#if 0
-	Buffer window(WindowSize);
-	ensureOutput(mStream, window, true);
-	
-	// For independent inflating
-	enum RewindStatus { NoRewind, CanRewind, DidRewind };
-	RewindStatus rewind = NoRewind;
-	off_t saveOut, saveIn;
-	Buffer saveWin(window.size());
-	
-	z_stream s2;
-	setupStream(s2);
-	if (inflateInit2(&s2, -MAX_WBITS) != Z_OK)
-		throwFormat("can't initialize secondary stream");
-	
-	z_stream *s = &mStream, *so = &s2;
-	off_t out = 0; // bytes discarded
-	int err;
-	do {
-		if (s->data_type & 128) { // Block boundary!
-			if (rewind == CanRewind && s->total_out >= WindowSize) {
-				fprintf(stderr, "\t\t\t\t\t\t\t\tsuccess!\n");
-				rewind = NoRewind;
-			}
-			
-			off_t ib = fh.tell() - s->avail_in,
-				ob = out + window.size() - s->avail_out;
-			size_t bits = (s->data_type & 7);
-			fprintf(stderr, "block: in = %lld, out = %lld, bits = %zu\n",
-				ib, ob, bits);
-			
-			if (rewind == DidRewind) {
-				rewind = NoRewind; // failed, just read normally
-			} else if (rewind == NoRewind) {
-				if (bits == 0) { // Try to read independently
-					fprintf(stderr, "trying independent read...\n");
-					
-					rewind = CanRewind;
-					saveIn = ib;
-					saveOut = out;
-					saveWin = window;
-					std::swap(s, so);
-					s->avail_in = so->avail_in;
-					s->next_in = so->next_in;
-					s->avail_out = so->avail_out;
-					s->next_out = &window[window.size() - s->avail_out];
-					s->total_out = 0;
-					if (inflateReset2(s, -MAX_WBITS) != Z_OK)
-						throwFormat("can't initialize secondary stream");
-				}
-			}
-		}
-		
-		ensureInput(*s, fh);
-		if (ensureOutput(*s, window))
-			out += window.size();
-				
-		err = inflate(s, Z_BLOCK);
-		if (err != Z_OK && err != Z_STREAM_END) {
-			if (rewind == CanRewind) {
-				fprintf(stderr, "\t\t\t\t\t\t\t\tfailure, rewinding\n");
-				fh.seek(saveIn, SEEK_SET);
-				out = saveOut;
-				std::swap(saveWin, window);
-				std::swap(s, so);
-				s->avail_in = 0;
-				rewind = DidRewind;
-			} else {
-				fprintf(stderr, "inflate: %d\n", err);
-				throwFormat("can't inflate while indexing");
-			}
-		}
-	} while (err != Z_STREAM_END);
-	
-	// FIXME: cleanup
-	fprintf(stderr, "got here!\n"); exit(1);
-#endif
+} catch (std::runtime_error& e) {
+	fprintf(stderr, "%s: %s\n", typeid(e).name(), e.what());
+	throw;
+}
 }
 
 GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)

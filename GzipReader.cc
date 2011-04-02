@@ -1,8 +1,7 @@
 #include "GzipReader.h"
 
 #include "CompressedFile.h"
-
-const size_t GzipReader::WindowSize = 1 << MAX_WBITS; 
+#include "GzipFile.h"
 
 void GzipReader::throwEx(const std::string& s, int err) {
 	if (err == Z_OK)
@@ -28,6 +27,8 @@ void GzipReader::saveSwap(GzipReader& o) {
 	// Other fields shouldn't change
 }
 
+// Chunk and Window size aren't available in constructor, so do this
+// separately
 void GzipReader::setupBuffers() {
 	if (!mInitialized) {
 		mInput.resize(mChunkSize);
@@ -68,7 +69,7 @@ int GzipReader::block() {
 		err = step();
 		if (err != Z_OK && err != Z_STREAM_END)
 			return err;
-		if ((mStream.data_type & 128) && (mStream.data_type & 7) == 0)
+		if (mStream.data_type & 128)
 			break;
 	} while (err != Z_STREAM_END);
 	return err;
@@ -76,7 +77,8 @@ int GzipReader::block() {
 
 GzipReader::GzipReader(const FileHandle& fh, Wrapper wrap)
 		: mInitialized(false),
-		mChunkSize(CompressedFile::ChunkSize), mWindowSize(WindowSize),
+		mChunkSize(CompressedFile::ChunkSize),
+		mWindowSize(GzipFile::WindowSize),
 		mFH(fh),
 		mInitOutPos(0), mOutBytes(0),
 		mSave(0) {
@@ -102,9 +104,6 @@ std::string GzipReader::zerr(const std::string& s, int err) const {
 
 void GzipReader::save() {
 	setupBuffers();
-	
-	// FIXME: prime!
-	
 	if (!mSave) {
 		mSave = new GzipReader(mFH);
 		mSave->setupBuffers();
@@ -118,6 +117,11 @@ void GzipReader::save() {
 	mInput = mSave->mInput;
 	mStream.avail_in = mSave->mStream.avail_in;
 	mStream.next_in = &mInput[0] + mInput.size() - mStream.avail_in;
+	
+	size_t bits = (mSave->mStream.data_type & 7);
+	if (bits)
+		throwEx("prime", inflatePrime(&mStream, bits,
+			mStream.next_in[-1] >> (8 - bits)));
 	
 	mInitOutPos = mSave->opos();
 	mOutBytes = 0;

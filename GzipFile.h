@@ -6,7 +6,7 @@
 #include "GzipReader.h"
 
 class GzipFile : public IndexedCompFile {
-protected:	
+protected:
 	class Iterator : public BlockIteratorInner {
 		// FIXME
 		Block mBlock;
@@ -23,6 +23,9 @@ protected:
 	virtual void writeIndex(FileHandle& fh) const;
 	
 public:
+	static const size_t WindowSize;	
+	static const uint64_t MaxDictBlockSize;
+	
 	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
 		{ return new GzipFile(path, maxBlock); }
 	
