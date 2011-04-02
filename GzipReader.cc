@@ -118,7 +118,7 @@ void GzipReader::save() {
 	mStream.avail_in = mSave->mStream.avail_in;
 	mStream.next_in = &mInput[0] + mInput.size() - mStream.avail_in;
 	
-	size_t bits = (mSave->mStream.data_type & 7);
+	size_t bits = mSave->ibits();
 	if (bits)
 		throwEx("prime", inflatePrime(&mStream, bits,
 			mStream.next_in[-1] >> (8 - bits)));
@@ -133,6 +133,12 @@ void GzipReader::restore() {
 	
 	saveSwap(*mSave);
 	mFH.seek(mSaveSeek, SEEK_SET);
+}
+
+void GzipReader::copyWindow(Buffer& buf) {
+	buf.resize(mWindow.size());
+	std::rotate_copy(mWindow.begin(), mWindow.end() - mStream.avail_out,
+		mWindow.end(), buf.begin());
 }
 
 void GzipHeaderReader::header(gz_header& hdr) {

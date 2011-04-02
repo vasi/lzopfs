@@ -104,8 +104,7 @@ void LzopFile::buildIndex(FileHandle& fh) {
 		if (usize != csize)
 			sums += csums;
 		
-		mBlocks.push_back(Block(usize, csize,
-			coff + bheader + sums, uoff));
+		mBlocks.push_back(Block(usize, csize, uoff, coff + bheader + sums));
 		
 		coff += sums + csize + 2 * sizeof(uint32_t);
 		uoff += usize;
@@ -137,7 +136,7 @@ bool LzopFile::readIndex(FileHandle& fh) {
 		fh.readBE(csize);
 		fh.readBE(coff);
 		
-		mBlocks.push_back(Block(usize, csize, coff, uoff));
+		mBlocks.push_back(Block(usize, csize, uoff, coff));
 		uoff += usize;
 	}
 }

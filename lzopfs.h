@@ -8,12 +8,12 @@ typedef std::vector<uint8_t> Buffer;
 
 struct Block {
 	uint32_t usize, csize;
-	uint64_t coff, uoff;
+	uint64_t uoff, coff;
 	void *userdata;
 	
 	Block(uint32_t us = 0, uint32_t cs = 0,
-			uint32_t co = 0, uint32_t uo = 0, void *u = 0)
-		: usize(us), csize(cs), coff(co), uoff(uo), userdata(u) { }
+			uint64_t uo = 0, uint64_t co = 0, void *u = 0)
+		: usize(us), csize(cs), uoff(uo), coff(co), userdata(u) { }
 };
 
 #endif // LZOPFS_H

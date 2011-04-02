@@ -2,6 +2,9 @@
 
 #include "PathUtils.h"
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 const size_t CompressedFile::ChunkSize = 4096;
 
 void CompressedFile::throwFormat(const std::string& s) const {
@@ -21,6 +24,16 @@ void CompressedFile::checkSizes(uint64_t maxBlock) const {
 		}
 	}
 }
+
+void CompressedFile::dumpBlocks() {
+	fprintf(stderr, "\nBLOCKS\n");
+	for (BlockIterator iter = findBlock(0); !iter.end(); ++iter) {
+		fprintf(stderr, "Block: uoff = %9" PRIu64 ", coff = %9" PRIu64
+			", usize = %9u, csize = %9u\n", iter->uoff, iter->coff,
+			iter->usize, iter->csize);
+	}
+}
+
 
 void IndexedCompFile::initialize(uint64_t maxBlock) {
 	FileHandle fh(path(), O_RDONLY);

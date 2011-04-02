@@ -7,15 +7,17 @@
 
 class GzipFile : public IndexedCompFile {
 protected:
-	class Iterator : public BlockIteratorInner {
-		// FIXME
-		Block mBlock;
-		virtual void incr() { }
-		virtual const Block& deref() const { return mBlock; }
-		virtual bool end() const { return true; }
-		virtual BlockIteratorInner *dup() const
-			{ return new Iterator(); }
+	struct BlockAux {
+		size_t bits;
+		Buffer dict;
+		
+		BlockAux(size_t b) : bits(b) { }
 	};
+	std::vector<BlockAux> mAux;
+	
+	
+	void setLastBlockSize(off_t uoff, off_t coff);
+	Buffer& addBlock(off_t uoff, off_t coff, size_t bits);
 	
 	virtual void checkFileType(FileHandle &fh);
 	virtual bool readIndex(FileHandle& fh);
@@ -23,8 +25,8 @@ protected:
 	virtual void writeIndex(FileHandle& fh) const;
 	
 public:
-	static const size_t WindowSize;	
-	static const uint64_t MaxDictBlockSize;
+	static const size_t WindowSize;
+	static const uint64_t MinDictBlockSize;
 	
 	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
 		{ return new GzipFile(path, maxBlock); }
@@ -33,7 +35,6 @@ public:
 	
 	virtual std::string destName() const;
 	
-	virtual BlockIterator findBlock(off_t off) const;
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf);
 	

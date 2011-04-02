@@ -64,6 +64,8 @@ public:
 		Buffer& ubuf) = 0;
 	
 	virtual off_t uncompressedSize() const = 0;
+	
+	void dumpBlocks();
 };
 
 class IndexedCompFile : public CompressedFile {

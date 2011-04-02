@@ -52,14 +52,13 @@ public:
 	void save();
 	void restore();
 	
-	int block();
+	int block(); // Go to next block
+	void copyWindow(Buffer& buf);
 	
 	off_t ipos() const { return mFH.tell() - mStream.avail_in; }
 	off_t opos() const { return mInitOutPos + mOutBytes; }
+	size_t ibits() const { return (mStream.data_type & 7); }
 	off_t obytes() const { return mOutBytes; }
-	
-	void save(GzipReader& o);
-	void restore(GzipReader& o);
 };
 
 struct GzipHeaderReader : public GzipReader {
