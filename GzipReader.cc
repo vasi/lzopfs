@@ -3,70 +3,89 @@
 #include "CompressedFile.h"
 #include "GzipFile.h"
 
-void GzipReader::throwEx(const std::string& s, int err) {
+void GzipReaderBase::throwEx(const std::string& s, int err) {
 	if (err == Z_OK)
 		return;
 	throw Exception(zerr(s, err));
 }
 
-void GzipReader::resetWindow() {
-	mStream.avail_out = mWindow.size();
-	mStream.next_out = &mWindow[0];
+void GzipReaderBase::setDict(const Buffer& dict) {
+	initialize();
+	if (!dict.empty())
+		throwEx("setDict",
+			inflateSetDictionary(&mStream, &dict[0], dict.size()));
 }
 
-void GzipReader::saveSwap(GzipReader& o) {	
-	std::swap(mInput, o.mInput);
-	std::swap(mWindow, o.mWindow);
-	std::swap(mInitOutPos, o.mInitOutPos);
-	std::swap(mOutBytes, o.mOutBytes);
-	
-	z_stream tmp = o.mStream;
-	o.mStream = mStream;
-	mStream = tmp;
-	
-	// Other fields shouldn't change
+void GzipReaderBase::prime(uint8_t byte, size_t bits) {
+	initialize();
+	if (bits != 0)
+		throwEx("prime", inflatePrime(&mStream, bits, byte >> (8 - bits)));
 }
 
-// Chunk and Window size aren't available in constructor, so do this
-// separately
-void GzipReader::setupBuffers() {
-	if (!mInitialized) {
-		mInput.resize(mChunkSize);
-		mWindow.resize(mWindowSize);
-		
-		resetWindow();
-		mStream.avail_in = 0;
-		
-		mInitialized = true;
-	}
-}
-
-int GzipReader::step() {
-	setupBuffers();
+int GzipReaderBase::step(int flush) {
+	initialize();
 	if (mStream.avail_in == 0) {
-		mStream.avail_in = mFH.tryRead(mInput, mChunkSize);
+		mStream.avail_in = mFH.tryRead(mInput, chunkSize());
 		mStream.next_in = &mInput[0];
 	}
 	if (mStream.avail_out == 0)
-		resetWindow();
+		writeOut(outBuf().size());
 	
 	mOutBytes += mStream.avail_out;
-	int err = inflate(&mStream, Z_BLOCK);
+	int err = inflate(&mStream, flush);
 	mOutBytes -= mStream.avail_out;
 	return err;
 }
 
-int GzipReader::stepThrow() {
-	int err = step();
+int GzipReaderBase::stepThrow(int flush) {
+	int err = step(flush);
 	if (err != Z_STREAM_END)
 		throwEx("inflate", err);
 	return err;
 }
 
-int GzipReader::block() {
+void GzipReaderBase::initialize(bool force) {
+	if (!force && mInitialized)
+		return;
+	
+	throwEx("init", inflateInit2(&mStream, wrapper()));
+	resetOutBuf();
+	
+	mInitialized = true;
+}
+
+size_t GzipReaderBase::chunkSize() const {
+	return CompressedFile::ChunkSize;
+}
+
+GzipReaderBase::GzipReaderBase(FileHandle& fh)
+		: mInitialized(false), mFH(fh), mOutBytes(0) {
+	mStream.zfree = Z_NULL;
+	mStream.zalloc = Z_NULL;
+	mStream.opaque = Z_NULL;
+	mStream.avail_in = 0;
+}
+
+void GzipReaderBase::swap(GzipReaderBase& o) {
+	initialize();
+	o.initialize();
+	std::swap(mStream, o.mStream);
+	std::swap(mInput, o.mInput);
+	std::swap(mOutBytes, o.mOutBytes);
+}
+
+std::string GzipReaderBase::zerr(const std::string& s, int err) const {
+	char *w = NULL;	
+	asprintf(&w, "%s: %s (%d)", s.c_str(), mStream.msg, err);
+	std::string ws(w);
+	free(w);
+	return ws;
+}
+
+int GzipReaderBase::block() {
 	int err;
 	do {
-		err = step();
+		err = step(Z_BLOCK);
 		if (err != Z_OK && err != Z_STREAM_END)
 			return err;
 		if (mStream.data_type & 128)
@@ -75,40 +94,32 @@ int GzipReader::block() {
 	return err;
 }
 
-GzipReader::GzipReader(const FileHandle& fh, Wrapper wrap)
-		: mInitialized(false),
-		mChunkSize(CompressedFile::ChunkSize),
-		mWindowSize(GzipFile::WindowSize),
-		mFH(fh),
-		mInitOutPos(0), mOutBytes(0),
-		mSave(0) {
-	mStream.zfree = Z_NULL;
-	mStream.zalloc = Z_NULL;
-	mStream.opaque = Z_NULL;
-	throwEx("inflate init", inflateInit2(&mStream, wrap));
-}
-
-GzipReader::~GzipReader() {
-	inflateEnd(&mStream);
-	if (mSave)
-		delete mSave;
-}
-
-std::string GzipReader::zerr(const std::string& s, int err) const {
-	char *w = NULL;	
-	asprintf(&w, "%s: %s (%d)", s.c_str(), mStream.msg, err);
-	std::string ws(w);
-	free(w);
-	return ws;
-}
-
-void GzipReader::save() {
-	setupBuffers();
-	if (!mSave) {
-		mSave = new GzipReader(mFH);
-		mSave->setupBuffers();
+GzipBlockReader::GzipBlockReader(FileHandle& fh, Buffer& ubuf,
+		const Block& b, const Buffer& dict, size_t bits)
+		: GzipReaderBase(fh), mOutBuf(ubuf) {
+	setDict(dict);
+	mFH.seek(b.coff - (bits ? 1 : 0), SEEK_SET);
+	if (bits) {
+		uint8_t byte;
+		mFH.readBE(byte);
+		prime(byte, bits);
 	}
-	saveSwap(*mSave);
+}
+
+void GzipBlockReader::read() {
+	while (mStream.avail_out)
+		stepThrow(Z_NO_FLUSH);
+}
+
+size_t SavingGzipReader::windowSize() const {
+	return GzipFile::WindowSize;
+}
+
+void SavingGzipReader::save() {
+	if (!mSave)
+		mSave = new PositionedGzipReader(mFH);
+	swap(*mSave);
+	
 	mSaveSeek = mFH.tell();
 	
 	// Fixup state to correspond to where we were
@@ -118,31 +129,26 @@ void GzipReader::save() {
 	mStream.avail_in = mSave->mStream.avail_in;
 	mStream.next_in = &mInput[0] + mInput.size() - mStream.avail_in;
 	
+	mOutBuf.resize(windowSize());
+	resetOutBuf();
+	
 	size_t bits = mSave->ibits();
-	if (bits)
-		throwEx("prime", inflatePrime(&mStream, bits,
-			mStream.next_in[-1] >> (8 - bits)));
+	prime(mStream.next_in[-1], bits);
 	
 	mInitOutPos = mSave->opos();
 	mOutBytes = 0;
 }
 
-void GzipReader::restore() {
+void SavingGzipReader::restore() {
 	if (!mSave)
 		throw std::runtime_error("no saved state");
 	
-	saveSwap(*mSave);
+	swap(*mSave);
 	mFH.seek(mSaveSeek, SEEK_SET);
 }
 
-void GzipReader::copyWindow(Buffer& buf) {
-	buf.resize(mWindow.size());
-	std::rotate_copy(mWindow.begin(), mWindow.end() - mStream.avail_out,
-		mWindow.end(), buf.begin());
-}
-
-void GzipHeaderReader::header(gz_header& hdr) {
-	inflateGetHeader(&mStream, &hdr);
-	while (!hdr.done)
-		stepThrow();
+void SavingGzipReader::copyWindow(Buffer& buf) {
+	buf.resize(outBuf().size());
+	std::rotate_copy(outBuf().begin(), outBuf().end() - mStream.avail_out,
+		outBuf().end(), buf.begin());
 }

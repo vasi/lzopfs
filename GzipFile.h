@@ -37,8 +37,6 @@ public:
 	
 	virtual void decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf);
-	
-	virtual off_t uncompressedSize() const;
 };
 
 #endif // GZIPFILE_H

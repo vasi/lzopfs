@@ -6,11 +6,11 @@
 
 #include <zlib.h>
 
-class GzipReader {
+class GzipReaderBase {
 private:
 	// Disable copying
-	GzipReader(const GzipReader& o);
-	GzipReader& operator=(const GzipReader& o);
+	GzipReaderBase(const GzipReaderBase& o);
+	GzipReaderBase& operator=(const GzipReaderBase& o);
 	
 public:	
 	struct Exception : std::runtime_error {
@@ -21,50 +21,127 @@ public:
 		Gzip = 16 + MAX_WBITS,
 		Raw = -MAX_WBITS,
 	};
-	enum Type { BareClone };
 
 protected:
 	bool mInitialized;
-	size_t mChunkSize, mWindowSize;
-	FileHandle mFH;
-	
-	Buffer mInput, mWindow;
+	FileHandle& mFH;
 	z_stream mStream;
-	off_t mInitOutPos, mOutBytes;
-	
-	GzipReader *mSave;
-	off_t mSaveSeek;
+	Buffer mInput;
+	off_t mOutBytes;
 	
 	void throwEx(const std::string& s, int err);
-	void setupBuffers();
-	void resetWindow();
-	void saveSwap(GzipReader& o);
+	void resetOutBuf() {
+		mStream.next_out = &outBuf()[0];
+		mStream.avail_out = outBuf().size();
+	}
 	
-	int step();
-	int stepThrow();
+	void setDict(const Buffer& dict);
+	void prime(uint8_t byte, size_t bits);
 	
+	int step(int flush = Z_BLOCK); // One iteration of inflate
+	int stepThrow(int flush = Z_BLOCK);
+	
+	virtual void initialize(bool force = false);
+	virtual size_t chunkSize() const;
+	virtual Wrapper wrapper() const { return Raw; }
+	virtual Buffer& outBuf() = 0;
+	virtual void writeOut(size_t n)
+		{ throw std::runtime_error("out of space in gzip output buffer"); }
+
 public:
-	GzipReader(const FileHandle& fh, Wrapper wrap = Raw);
-	~GzipReader();
+	GzipReaderBase(FileHandle& fh);
+	virtual ~GzipReaderBase() { if (mInitialized) inflateEnd(&mStream); }
+	
+	virtual void swap(GzipReaderBase& o);
 	
 	std::string zerr(const std::string& s, int err = Z_OK) const;
 	
-	void save();
-	void restore();
-	
-	int block(); // Go to next block
-	void copyWindow(Buffer& buf);
+	int block(); // Read to next block
 	
 	off_t ipos() const { return mFH.tell() - mStream.avail_in; }
-	off_t opos() const { return mInitOutPos + mOutBytes; }
 	size_t ibits() const { return (mStream.data_type & 7); }
 	off_t obytes() const { return mOutBytes; }
 };
 
-struct GzipHeaderReader : public GzipReader {
-	GzipHeaderReader(const FileHandle& fh) : GzipReader(fh, Gzip)
-		{ mChunkSize = 512; mWindowSize = 1; }
-	void header(gz_header& hdr);
+class DiscardingGzipReader : public GzipReaderBase {
+protected:
+	Buffer mOutBuf;
+	
+public:
+	DiscardingGzipReader(FileHandle& fh)
+		: GzipReaderBase(fh) { }
+	
+	virtual void swap(DiscardingGzipReader& o) {
+		GzipReaderBase::swap(o);
+		std::swap(mOutBuf, o.mOutBuf);
+	}
+	
+	virtual void writeOut(size_t n) { resetOutBuf(); }
+	virtual Buffer& outBuf() { return mOutBuf; }
+};
+
+struct GzipHeaderReader : public DiscardingGzipReader {
+	GzipHeaderReader(FileHandle& fh) : DiscardingGzipReader(fh)
+		{ mOutBuf.resize(1); }
+	virtual size_t chunkSize() const { return 512; }
+	virtual Wrapper wrapper() const { return Gzip; }
+	void header(gz_header& hdr) {
+		initialize();
+		throwEx("header", inflateGetHeader(&mStream, &hdr));
+		while (!hdr.done)
+			stepThrow();
+	}
+};
+
+class GzipBlockReader : public GzipReaderBase {
+protected:
+	Buffer& mOutBuf;
+
+public:
+	GzipBlockReader(FileHandle& fh, Buffer& ubuf, const Block& b,
+		const Buffer& dict, size_t bits);
+	Buffer& outBuf() { return mOutBuf; }
+	void read();
+};
+
+class PositionedGzipReader : public DiscardingGzipReader {
+protected:
+	off_t mInitOutPos;
+	Wrapper mWrap;
+	
+	virtual Wrapper wrapper() const { return mWrap; }
+
+public:
+	PositionedGzipReader(FileHandle& fh, off_t opos = 0)
+		: DiscardingGzipReader(fh), mInitOutPos(opos),
+		mWrap(opos ? Raw : Gzip) { }
+
+	virtual void swap(PositionedGzipReader& o) {
+		DiscardingGzipReader::swap(o);
+		std::swap(mInitOutPos, o.mInitOutPos);
+		std::swap(mWrap, o.mWrap);
+	}
+	
+	off_t opos() const { return mInitOutPos + obytes(); }
+};
+
+class SavingGzipReader : public PositionedGzipReader {
+protected:
+	PositionedGzipReader *mSave;
+	off_t mSaveSeek;
+	
+	size_t windowSize() const;
+	
+public:
+	SavingGzipReader(FileHandle& fh, off_t opos = 0)
+		: PositionedGzipReader(fh, opos), mSave(0)
+		{ mOutBuf.resize(windowSize()); }
+	virtual ~SavingGzipReader() { if (mSave) delete mSave; }
+	
+	void save();
+	void restore();
+	
+	void copyWindow(Buffer& buf);
 };
 
 #endif // GZIPREADER_H

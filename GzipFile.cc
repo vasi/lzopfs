@@ -10,7 +10,7 @@ void GzipFile::checkFileType(FileHandle& fh) {
 		GzipHeaderReader rd(fh);
 		gz_header hdr;
 		rd.header(hdr);
-	} catch (GzipReader::Exception& e) {
+	} catch (GzipReaderBase::Exception& e) {
 		throwFormat(e.what());
 	} catch (FileHandle::EOFException& e) {
 		throwFormat("EOF");
@@ -36,7 +36,7 @@ Buffer& GzipFile::addBlock(off_t uoff, off_t coff, size_t bits) {
 
 void GzipFile::buildIndex(FileHandle& fh) {
 	fh.seek(0, SEEK_SET);
-	GzipReader rd(fh, GzipReader::Gzip);
+	SavingGzipReader rd(fh);
 	
 	/* Go through every block in the file.
 	 * For each block, try to see first if it can be decoded independently,
@@ -92,9 +92,8 @@ void GzipFile::buildIndex(FileHandle& fh) {
 			} 
 		}
 	} while (err != Z_STREAM_END);
-	setLastBlockSize(rd.opos(), rd.ipos());
-	
-	dumpBlocks();
+	setLastBlockSize(rd.opos(), rd.ipos());	
+//	dumpBlocks();
 }
 
 GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)
@@ -104,21 +103,17 @@ GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)
 
 bool GzipFile::readIndex(FileHandle& fh) {
 	return false; // FIXME
-	
-	// FIXME: on success, close mStream, we won't need it
 }
 
 void GzipFile::writeIndex(FileHandle& fh) const {
 	// FIXME
 }
 
-void GzipFile::decompressBlock(FileHandle& fh, const Block& b,
-		Buffer& ubuf) {
-	// FIXME
-}
-
-off_t GzipFile::uncompressedSize() const {
-	return 0; // FIXME
+void GzipFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
+	BlockAux& aux(mAux[reinterpret_cast<size_t>(b.userdata)]);
+	ubuf.resize(b.usize);
+	GzipBlockReader rd(fh, ubuf, b, aux.dict, aux.bits);
+	rd.read();
 }
 
 std::string GzipFile::destName() const {
