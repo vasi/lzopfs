@@ -72,9 +72,10 @@ class IndexedCompFile : public CompressedFile {
 public:
 	IndexedCompFile(const std::string& path)
 		: CompressedFile(path) { }
+	virtual ~IndexedCompFile();
 
 protected:	
-	typedef std::vector<Block> BlockList;
+	typedef std::vector<Block*> BlockList;
 	BlockList mBlocks;	
 	
 	
@@ -84,7 +85,7 @@ protected:
 		Iterator(BlockList::const_iterator i, BlockList::const_iterator e)
 			: mIter(i), mEnd(e) { }
 		virtual void incr() { ++mIter; }
-		virtual const Block& deref() const { return *mIter; }
+		virtual const Block& deref() const { return **mIter; }
 		virtual bool end() const { return mIter == mEnd; }
 		virtual BlockIteratorInner *dup() const
 			{ return new Iterator(mIter, mEnd); }
@@ -99,6 +100,7 @@ protected:
 	virtual void buildIndex(FileHandle& fh) = 0;
 	virtual void writeIndex(FileHandle& fh) const = 0;
 	
+	virtual void addBlock(Block* b) { mBlocks.push_back(b); }
 	virtual BlockIterator findBlock(off_t off) const;
 	virtual off_t uncompressedSize() const;
 };

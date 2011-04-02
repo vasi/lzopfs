@@ -7,13 +7,13 @@
 
 class GzipFile : public IndexedCompFile {
 protected:
-	struct BlockAux {
+	struct GzipBlock : public Block {
 		size_t bits;
 		Buffer dict;
 		
-		BlockAux(size_t b) : bits(b) { }
+		GzipBlock(off_t uoff, off_t coff, size_t b)
+			: Block(0, 0, uoff, coff), bits(b) { }
 	};
-	std::vector<BlockAux> mAux;
 	
 	
 	void setLastBlockSize(off_t uoff, off_t coff);

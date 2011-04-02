@@ -21,17 +21,16 @@ void GzipFile::checkFileType(FileHandle& fh) {
 void GzipFile::setLastBlockSize(off_t uoff, off_t coff) {
 	if (mBlocks.empty())
 		return;
-	Block& p = mBlocks.back();
-	p.usize = uoff - p.uoff;
-	p.csize = coff - p.coff;
+	Block* p = mBlocks.back();
+	p->usize = uoff - p->uoff;
+	p->csize = coff - p->coff;
 }
 
 Buffer& GzipFile::addBlock(off_t uoff, off_t coff, size_t bits) {
 	setLastBlockSize(uoff, coff);
-	mBlocks.push_back(Block(0, 0, uoff, coff, 
-		reinterpret_cast<void*>(mBlocks.size())));
-	mAux.push_back(BlockAux(bits));
-	return mAux.back().dict;
+	GzipBlock *b = new GzipBlock(uoff, coff, bits);
+	IndexedCompFile::addBlock(b);
+	return b->dict;
 }
 
 void GzipFile::buildIndex(FileHandle& fh) {
@@ -110,9 +109,9 @@ void GzipFile::writeIndex(FileHandle& fh) const {
 }
 
 void GzipFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
-	BlockAux& aux(mAux[reinterpret_cast<size_t>(b.userdata)]);
-	ubuf.resize(b.usize);
-	GzipBlockReader rd(fh, ubuf, b, aux.dict, aux.bits);
+	const GzipBlock& gb = dynamic_cast<const GzipBlock&>(b);
+	ubuf.resize(gb.usize);
+	GzipBlockReader rd(fh, ubuf, b, gb.dict, gb.bits);
 	rd.read();
 }
 
