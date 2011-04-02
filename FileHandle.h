@@ -9,11 +9,6 @@
 #include <fcntl.h>
 
 class FileHandle {
-private:
-	// Disable copying
-	FileHandle(const FileHandle& o);
-	FileHandle& operator=(const FileHandle& o);
-
 protected:
 	std::string mPath;
 	int mFD;
@@ -36,10 +31,15 @@ public:
 	
 	FileHandle(int fd = -1) : mFD(fd), mOwnFD(false) { }
 	FileHandle(const std::string& path, int flags, mode_t mode = 0444);
-	void open(const std::string& path, int flags, mode_t mode = 0444);
-	bool open() const { return mFD != -1; }
-	
 	virtual ~FileHandle();
+	
+	void open(const std::string& path, int flags, mode_t mode = 0444);
+	void close();
+	
+	FileHandle(const FileHandle& o) { *this = o; }
+	FileHandle& operator=(const FileHandle& o);
+	
+	bool open() const { return mFD != -1; }
 	
 	void read(void *buf, size_t size);
 	void read(Buffer& buf, size_t size);
@@ -47,7 +47,7 @@ public:
 	size_t tryRead(Buffer& buf, size_t size);
 	void write(void *buf, size_t size);
 	off_t seek(off_t offset, int whence = SEEK_CUR);
-	off_t tell();
+	off_t tell() const;
 	
 	template <typename T>
 	static void convertBE(T &t) {

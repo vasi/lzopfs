@@ -28,9 +28,22 @@ void FileHandle::open(const std::string& path, int flags, mode_t mode) {
 	mOwnFD = true;
 }
 
-FileHandle::~FileHandle() {
+FileHandle& FileHandle::operator=(const FileHandle& o) {
+	close();
+	mOwnFD = false;
+	mPath = o.mPath;
+	mFD = o.mFD;
+	return *this;
+}
+
+void FileHandle::close() {
 	if (mOwnFD && mFD != -1)
 		::close(mFD);
+	mFD = -1;
+}
+
+FileHandle::~FileHandle() {
+	close();
 }
 
 void FileHandle::read(void *buf, size_t size) {
@@ -70,8 +83,8 @@ off_t FileHandle::seek(off_t offset, int whence) {
 	return ret;
 }
 
-off_t FileHandle::tell() {
-	return seek(0, SEEK_CUR);
+off_t FileHandle::tell() const {
+	return const_cast<FileHandle*>(this)->seek(0, SEEK_CUR);
 }
 
 

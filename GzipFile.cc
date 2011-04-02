@@ -2,56 +2,50 @@
 
 #include "PathUtils.h"
 
-const size_t GzipFile::WindowSize = 1 << MAX_WBITS; 
-
-void GzipFile::setupStream(z_stream& s) {
-	s.zalloc = Z_NULL;
-	s.zfree = Z_NULL;
-	s.opaque = Z_NULL;
-}
-
-void GzipFile::ensureInput(z_stream& s, FileHandle& fh) {
-	if (s.avail_in == 0) {
-		s.avail_in = fh.tryRead(mInBuf, ChunkSize);
-		s.next_in = &mInBuf[0];
-	}
-}
-
-bool GzipFile::ensureOutput(z_stream& s, Buffer& w, bool force) {
-	if (!force && s.avail_out)
-		return false;
-	s.next_out = &w[0];
-	s.avail_out = w.size();
-	return true;
-}
-
 void GzipFile::checkFileType(FileHandle& fh) {
 	try {
-		// Read til end of header
-		if (inflateInit2(&mStream, 16 + MAX_WBITS) != Z_OK)
-			throwFormat("can't init gzip reader");
-		
-		gz_header header;
-		if (inflateGetHeader(&mStream, &header) != Z_OK)
-			throwFormat("can't init gzip header");
-		
-		// inflate wants a next_out, even if it won't use it
-		unsigned char dummy;
-		mStream.next_out = &dummy;
-		mStream.avail_out = 0;
-		
-		mStream.avail_in = 0;
-		while (!header.done) {
-			ensureInput(mStream, fh);
-			if (inflate(&mStream, Z_BLOCK) != Z_OK)
-				throwFormat("can't read gzip header");
-		}		
+		GzipHeaderReader rd(fh);
+		gz_header hdr;
+		rd.header(hdr);
+	} catch (GzipReader::Exception& e) {
+		throwFormat(e.what());
 	} catch (FileHandle::EOFException& e) {
 		throwFormat("EOF");
 	}
 }
 
 void GzipFile::buildIndex(FileHandle& fh) {
+	fh.seek(0, SEEK_SET);
+	GzipReader rd(fh, GzipReader::Gzip);
+	
+	int err;
+	bool rewind = false;
+	do {
+		err = rd.block();
+		if (err != Z_OK && err != Z_STREAM_END) {
+			if (rewind) {
+				fprintf(stderr, "failure, rewinding!\n");
+				rewind = false;
+				rd.restore();
+			} else {
+				fprintf(stderr, "%s\n", rd.zerr("ERR", err).c_str());
+				exit(1);
+			}
+		} else {
+			fprintf(stderr, "block: in = %9lld, out = %9lld\n",
+				rd.ipos(), rd.opos());
+			if (rd.opos() == 128 * 1024) {
+				fprintf(stderr, "saving!\n");
+				rd.save();
+				rewind = true;
+			}
+		}
+	} while (err != Z_STREAM_END);
+	
+	fprintf(stderr, "got here!\n");
+	exit(1);
+	
+#if 0
 	Buffer window(WindowSize);
 	ensureOutput(mStream, window, true);
 	
@@ -127,11 +121,11 @@ void GzipFile::buildIndex(FileHandle& fh) {
 	
 	// FIXME: cleanup
 	fprintf(stderr, "got here!\n"); exit(1);
+#endif
 }
 
 GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)
 		: IndexedCompFile(path) {
-	setupStream(mStream);
 	initialize(maxBlock);
 }
 
