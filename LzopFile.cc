@@ -125,34 +125,6 @@ LzopFile::LzopFile(const std::string& path, uint64_t maxBlock)
 	initialize(maxBlock);
 }
 
-// True on success
-bool LzopFile::readIndex(FileHandle& fh) {
-	uint32_t usize, csize;
-	uint64_t uoff = 0, coff;
-	while (true) {
-		fh.readBE(usize);
-		if (usize == 0)
-			return true;
-		fh.readBE(csize);
-		fh.readBE(coff);
-		
-		addBlock(new Block(usize, csize, uoff, coff));
-		uoff += usize;
-	}
-}
-
-void LzopFile::writeIndex(FileHandle& fh) const {
-	for (BlockList::const_iterator iter = mBlocks.begin();
-			iter != mBlocks.end(); ++iter) {
-		fh.writeBE((*iter)->usize);
-		fh.writeBE((*iter)->csize);
-		fh.writeBE((*iter)->coff);
-	}
-	uint32_t eof = 0;
-	fh.writeBE(eof);
-	fprintf(stderr, "Wrote index\n");
-}
-
 void LzopFile::decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf) {
 	fh.seek(b.coff, SEEK_SET);	

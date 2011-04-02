@@ -31,9 +31,7 @@ protected:
 	Checksum checksum(ChecksumType type, const Buffer& buf);
 	
 	virtual void checkFileType(FileHandle &fh);
-	virtual bool readIndex(FileHandle& fh);
 	virtual void buildIndex(FileHandle& fh);
-	virtual void writeIndex(FileHandle& fh) const;
 	
 public:
 	static CompressedFile* open(const std::string& path, uint64_t maxBlock)

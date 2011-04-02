@@ -98,3 +98,48 @@ off_t IndexedCompFile::uncompressedSize() const {
 	return b.uoff + b.usize;
 }
 
+bool IndexedCompFile::readIndex(FileHandle& fh) {
+	uint64_t uoff = 0;
+	while (true) {
+		Block* b = 0;
+		try {
+			b = newBlock();
+			if (!readBlock(fh, b)) {
+				delete b;
+				return true;
+			}
+			b->uoff = uoff;
+			addBlock(b);
+			uoff += b->usize;
+		} catch (...) {
+			delete b;
+			throw;
+		}
+	}
+}
+
+bool IndexedCompFile::readBlock(FileHandle& fh, Block *b) {
+	fh.readBE(b->usize);
+	if (b->usize == 0)
+		return false;
+	fh.readBE(b->csize);
+	fh.readBE(b->coff);
+	// uoff will be calculated
+	return true;
+}
+
+void IndexedCompFile::writeIndex(FileHandle& fh) const {
+	for (BlockList::const_iterator iter = mBlocks.begin();
+			iter != mBlocks.end(); ++iter) {
+		writeBlock(fh, *iter);
+	}
+	uint32_t eof = 0;
+	fh.writeBE(eof);
+	fprintf(stderr, "Wrote index\n");
+}
+
+void IndexedCompFile::writeBlock(FileHandle& fh, const Block* b) const {
+	fh.writeBE(b->usize);
+	fh.writeBE(b->csize);
+	fh.writeBE(b->coff);	
+}

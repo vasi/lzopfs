@@ -96,9 +96,13 @@ protected:
 	virtual void initialize(uint64_t maxBlock);
 	
 	virtual void checkFileType(FileHandle &fh) = 0;
-	virtual bool readIndex(FileHandle& fh) = 0;
 	virtual void buildIndex(FileHandle& fh) = 0;
-	virtual void writeIndex(FileHandle& fh) const = 0;
+	
+	virtual Block* newBlock() const { return new Block(); }
+	virtual bool readIndex(FileHandle& fh); // True on success
+	virtual bool readBlock(FileHandle& fh, Block* b);	// True unless EOF
+	virtual void writeIndex(FileHandle& fh) const;
+	virtual void writeBlock(FileHandle& fh, const Block *b) const;
 	
 	virtual void addBlock(Block* b) { mBlocks.push_back(b); }
 	virtual BlockIterator findBlock(off_t off) const;
