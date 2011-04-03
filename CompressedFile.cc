@@ -54,7 +54,7 @@ void IndexedCompFile::initialize(uint64_t maxBlock) {
 	
 	if (!index) {
 		buildIndex(fh);
-		FileHandle idxw(indexPath(), O_WRONLY | O_CREAT, 0664);
+		FileHandle idxw(indexPath(), O_WRONLY | O_CREAT | O_TRUNC, 0664);
 		writeIndex(idxw);
 	}
 

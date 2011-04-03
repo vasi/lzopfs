@@ -29,6 +29,9 @@ if not FindLib(conf, ['lzma']):
 if not FindLib(conf, ['z']):
     print 'zlib not found.'
     Exit(1)
+if not FindLib(conf, ['bz2']):
+    print 'bzip2 not found.'
+    Exit(1)
 
 if not conf.CheckHeader('libkern/OSByteOrder.h'):
     if not conf.CheckHeader('endian.h'):
