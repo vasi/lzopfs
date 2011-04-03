@@ -138,11 +138,11 @@ void LzopFile::decompressBlock(FileHandle& fh, const Block& b,
 	
 	ubuf.resize(b.usize);
 	lzo_uint usize = b.usize;
-	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));
+//	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));
 	int err = lzo1x_decompress_safe(&cbuf[0], cbuf.size(), &ubuf[0],
 		&usize, 0);
 	if (err != LZO_E_OK) {
-		fprintf(stderr, "lzo err: %d\n", err);
+//		fprintf(stderr, "lzo err: %d\n", err);
 		throw std::runtime_error("decompression error");
 	}
 }

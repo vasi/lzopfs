@@ -20,10 +20,12 @@ protected:
 	Buffer& addBlock(off_t uoff, off_t coff, size_t bits);
 	
 	virtual void checkFileType(FileHandle &fh);
-	virtual bool readIndex(FileHandle& fh);
 	virtual void buildIndex(FileHandle& fh);
-	virtual void writeIndex(FileHandle& fh) const;
 	
+	virtual Block* newBlock() const { return new GzipBlock(0, 0, 0); }
+	virtual bool readBlock(FileHandle& fh, Block* b);	// True unless EOF
+	virtual void writeBlock(FileHandle& fh, const Block *b) const;
+
 public:
 	static const size_t WindowSize;
 	static const uint64_t MinDictBlockSize;

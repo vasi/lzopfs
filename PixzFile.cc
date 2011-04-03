@@ -71,7 +71,7 @@ lzma_ret PixzFile::code(FileHandle& fh) {
 }
 
 void PixzFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {	
-	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));
+//	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));
 	fh.seek(b.coff, SEEK_SET);
 	
 	

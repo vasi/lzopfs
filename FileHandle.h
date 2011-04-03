@@ -45,7 +45,8 @@ public:
 	void read(Buffer& buf, size_t size);
 	size_t tryRead(void *buf, size_t size);
 	size_t tryRead(Buffer& buf, size_t size);
-	void write(void *buf, size_t size);
+	void write(const void *buf, size_t size);
+	void write(const Buffer& buf) { write(&buf[0], buf.size()); }
 	off_t seek(off_t offset, int whence = SEEK_CUR);
 	off_t tell() const;
 	

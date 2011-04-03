@@ -106,6 +106,7 @@ bool IndexedCompFile::readIndex(FileHandle& fh) {
 			b = newBlock();
 			if (!readBlock(fh, b)) {
 				delete b;
+//				dumpBlocks();
 				return true;
 			}
 			b->uoff = uoff;
@@ -135,7 +136,7 @@ void IndexedCompFile::writeIndex(FileHandle& fh) const {
 	}
 	uint32_t eof = 0;
 	fh.writeBE(eof);
-	fprintf(stderr, "Wrote index\n");
+//	fprintf(stderr, "Wrote index\n");
 }
 
 void IndexedCompFile::writeBlock(FileHandle& fh, const Block* b) const {

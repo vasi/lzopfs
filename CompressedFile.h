@@ -98,10 +98,10 @@ protected:
 	virtual void checkFileType(FileHandle &fh) = 0;
 	virtual void buildIndex(FileHandle& fh) = 0;
 	
-	virtual Block* newBlock() const { return new Block(); }
 	virtual bool readIndex(FileHandle& fh); // True on success
-	virtual bool readBlock(FileHandle& fh, Block* b);	// True unless EOF
 	virtual void writeIndex(FileHandle& fh) const;
+	virtual Block* newBlock() const { return new Block(); }
+	virtual bool readBlock(FileHandle& fh, Block* b);	// True unless EOF
 	virtual void writeBlock(FileHandle& fh, const Block *b) const;
 	
 	virtual void addBlock(Block* b) { mBlocks.push_back(b); }

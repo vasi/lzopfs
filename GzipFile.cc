@@ -53,7 +53,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 		if (err == Z_OK || err == Z_STREAM_END) {
 			if (indep) {
 				if (rd.obytes() > WindowSize) { // Yay, uoff block is indep!
-					fprintf(stderr, "...ok, adding!\n");
+//					fprintf(stderr, "...ok, adding!\n");
 					addBlock(uoff, coff, bits);
 					lastIdx = uoff;
 					indep = false;
@@ -63,12 +63,12 @@ void GzipFile::buildIndex(FileHandle& fh) {
 					}
 					// If !backtrack, continue from where we're at 
 				} else if (rd.obytes() == 0) { // Zero-length block, ignore
-					fprintf(stderr, "zero, rewinding!\n");
+//					fprintf(stderr, "zero, rewinding!\n");
 					indep = false;
 					rd.restore();
 					continue;
 				} else {
-					fprintf(stderr, "(backtrack)\n");
+//					fprintf(stderr, "(backtrack)\n");
 					// Mark that there's a block between uoff and window end
 					backtrack = true;
 				}
@@ -78,7 +78,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 				uoff = rd.opos();
 				coff = rd.ipos();
 				bits = rd.ibits();
-				fprintf(stderr, "Checking %lld, %lld\n", uoff, coff);
+//				fprintf(stderr, "Checking %lld, %lld\n", uoff, coff);
 				rd.save();
 				backtrack = false;
 				indep = true;
@@ -88,12 +88,12 @@ void GzipFile::buildIndex(FileHandle& fh) {
 				throwFormat(rd.zerr("gzip decode", err));
 			
 			if (indep) { // Indep decode failed, so rewind
-				fprintf(stderr, "...failed, rewinding!\n");
+//				fprintf(stderr, "...failed, rewinding!\n");
 				indep = false;
 				rd.restore();
 				if (rd.opos() - lastIdx > MinDictBlockSize) {
 					// Add a dict block
-					fprintf(stderr, "Dict block\n");
+//					fprintf(stderr, "Dict block\n");
 					Buffer& dict = addBlock(rd.opos(), rd.ipos(), rd.ibits());
 					rd.copyWindow(dict);
 					lastIdx = rd.opos();
@@ -102,20 +102,12 @@ void GzipFile::buildIndex(FileHandle& fh) {
 		}
 	} while (err != Z_STREAM_END);
 	setLastBlockSize(rd.opos(), rd.ipos());	
-	dumpBlocks();
+//	dumpBlocks();
 }
 
 GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)
 		: IndexedCompFile(path) {
 	initialize(maxBlock);
-}
-
-bool GzipFile::readIndex(FileHandle& fh) {
-	return false; // FIXME
-}
-
-void GzipFile::writeIndex(FileHandle& fh) const {
-	// FIXME
 }
 
 void GzipFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
@@ -131,4 +123,38 @@ std::string GzipFile::destName() const {
 	if (replaceExtension(base, "tgz", "tar")) return base;
 	if (removeExtension(base, "gz")) return base;
 	return base;
+}
+
+namespace {
+	enum {
+		BlockBitsMask = 0x07,
+		BlockDictFlag = 0x80,
+	};
+};
+
+bool GzipFile::readBlock(FileHandle& fh, Block *b) {
+	if (!IndexedCompFile::readBlock(fh, b))
+		return false;
+	
+	GzipBlock *gb = dynamic_cast<GzipBlock*>(b);
+	uint8_t flags;
+	fh.readBE(flags);
+	gb->bits = flags & BlockBitsMask;
+	if (flags & BlockDictFlag)
+		fh.read(gb->dict, WindowSize);
+	
+	return true;
+}
+
+void GzipFile::writeBlock(FileHandle& fh, const Block* b) const {
+	IndexedCompFile::writeBlock(fh, b);
+	
+	const GzipBlock* gb = dynamic_cast<const GzipBlock*>(b);
+	uint8_t flags = (gb->bits & BlockBitsMask);
+	if (!gb->dict.empty())
+		flags |= BlockDictFlag;
+	
+	fh.writeBE(flags);
+	if (flags & BlockDictFlag)
+		fh.write(gb->dict);
 }

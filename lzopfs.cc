@@ -107,6 +107,7 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 	if (key == FUSE_OPT_KEY_NONOPT) {
 		if (gNextSource) {
 			try {
+				fprintf(stderr, "%s\n", gNextSource);
 				gFiles.add(gNextSource);
 			} catch (std::runtime_error& e) {
 				except(e);
@@ -138,7 +139,8 @@ int main(int argc, char *argv[]) {
 			fuse_opt_add_arg(&args, gNextSource);
 	
 		gBlockCache.maxSize(CacheSize);
-	
+		
+		fprintf(stderr, "Ready\n");
 		return fuse_main(args.argc, args.argv, &ops, NULL);
 	} catch (std::runtime_error& e) {
 		except(e);

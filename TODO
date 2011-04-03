@@ -1,5 +1,5 @@
 - Write README
-- Add support for other compression formats (pigz, bzip2)
+- Add support for other compression formats (bzip2)
 - Remove debug messages
 - Multi-threaded
 	- Decompression threads

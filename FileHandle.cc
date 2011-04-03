@@ -72,7 +72,7 @@ size_t FileHandle::tryRead(void *buf, size_t size) {
 	return size_t(bytes);
 }
 
-void FileHandle::write(void *buf, size_t size) {
+void FileHandle::write(const void *buf, size_t size) {
 	ssize_t bytes = ::write(mFD, buf, size);
 	if (bytes < 0 || size_t(bytes) < size)
 		THROW_EX("write");
