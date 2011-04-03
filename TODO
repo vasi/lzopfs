@@ -1,9 +1,11 @@
 - Write README
-- Add support for other compression formats (bzip2)
+- Add support for other compression formats (bzip2 + pbzip2)
 - Remove debug messages
 - Multi-threaded
 	- Decompression threads
 	- Multiple in-flight requests?
 - Checksum blocks on decompression?
+- Test on > 4GB files
+- Static analysis
 
 - Way out there: Hierarchy based on tpxz files?

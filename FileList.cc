@@ -3,11 +3,13 @@
 #include "LzopFile.h"
 #include "PixzFile.h"
 #include "GzipFile.h"
+#include "Bzip2File.h"
 
 const FileList::OpenerList FileList::Openers(initOpeners());
 
 FileList::OpenerList FileList::initOpeners() {
-	OpenFunc o[] = { LzopFile::open, GzipFile::open, PixzFile::open };
+	OpenFunc o[] = { LzopFile::open, GzipFile::open, Bzip2File::open,
+		PixzFile::open };
 	return OpenerList(o, o + sizeof(o)/sizeof(o[0]));
 }
 
