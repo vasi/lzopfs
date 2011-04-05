@@ -6,6 +6,5 @@
 	- Multiple in-flight requests?
 - Checksum blocks on decompression?
 - Test on multi-stream files
-- Static analysis
 
 - Way out there: Hierarchy based on tpxz files?
