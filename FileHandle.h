@@ -49,6 +49,7 @@ public:
 	void write(const Buffer& buf) { write(&buf[0], buf.size()); }
 	off_t seek(off_t offset, int whence = SEEK_CUR);
 	off_t tell() const;
+	off_t size() const;
 	
 	template <typename T>
 	static void convertBE(T &t) {

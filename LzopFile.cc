@@ -18,7 +18,7 @@ const char LzopFile::Magic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 // Version of lzop we emulate
 const uint16_t LzopFile::LzopDecodeVersion = 0x1010;
 
-void LzopFile::checkFileType(FileHandle& fh) {
+void LzopFile::readHeaders(FileHandle& fh, uint32_t& flags) {
 	try {
 		// Check magic
 		Buffer magic;
@@ -38,10 +38,8 @@ void LzopFile::checkFileType(FileHandle& fh) {
 		fh.readBE(method);
 		fh.readBE(level);
 		
-		fh.readBE(mFlags);
-		if (mFlags & MultiPart)
-			throwFormat("multi-part archives not supported");
-		if (mFlags & Filter)
+		fh.readBE(flags);
+		if (flags & Filter)
 			throwFormat("filter not supported");
 		
 		fh.seek(3 * sizeof(uint32_t)); // skip mode, mtimes
@@ -60,11 +58,11 @@ void LzopFile::checkFileType(FileHandle& fh) {
 		
 		Checksum cksum;
 		fh.readBE(cksum);
-		if (cksum != checksum((mFlags & HeaderCRC) ? CRC : Adler, header))
+		if (cksum != checksum((flags & HeaderCRC) ? CRC : Adler, header))
 			throwFormat("checksum mismatch");
 		
 		
-		if (mFlags & ExtraField) { // unused?
+		if (flags & ExtraField) { // unused?
 			uint32_t extraSize;
 			fh.readBE(extraSize);
 			fh.seek(extraSize + sizeof(Checksum));
@@ -79,25 +77,38 @@ LzopFile::Checksum LzopFile::checksum(ChecksumType type, const Buffer& buf) {
 	return (type == CRC ? lzo_crc32 : lzo_adler32)(init, &buf[0], buf.size());
 }
 
-void LzopFile::buildIndex(FileHandle& fh) {	
+void LzopFile::buildIndex(FileHandle& fh) {
+	off_t size = fh.size();
+	
+	uint32_t flags = mFlags;
+	off_t uoff = 0;
+	while (true) {
+		uoff = findBlocks(fh, flags, uoff);
+		if (fh.tell() >= size)
+			break;
+		readHeaders(fh, flags);
+	}
+}
+
+off_t LzopFile::findBlocks(FileHandle& fh, uint32_t flags, off_t uoff) {	
 	// How much space for checksums?
 	size_t csums = 0, usums = 0;
-	if (mFlags & CRCComp) ++csums;
-	if (mFlags & AdlerComp) ++csums;
-	if (mFlags & CRCDec) ++usums;
-	if (mFlags & AdlerDec) ++usums;
+	if (flags & CRCComp) ++csums;
+	if (flags & AdlerComp) ++csums;
+	if (flags & CRCDec) ++usums;
+	if (flags & AdlerDec) ++usums;
 	csums *= sizeof(uint32_t);
 	usums *= sizeof(uint32_t);
 	
 	// Iterate thru the blocks
 	size_t bheader = 2 * sizeof(uint32_t);
 	uint32_t usize, csize;
-	off_t uoff = 0, coff = fh.tell();
+	off_t coff = fh.tell();
 	size_t sums;
 	while (true) {
 		fh.readBE(usize);
 		if (usize == 0)
-			break;
+			return uoff;
 		fh.readBE(csize);
 		
 		sums = usums;

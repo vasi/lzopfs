@@ -89,6 +89,14 @@ off_t FileHandle::tell() const {
 	return const_cast<FileHandle*>(this)->seek(0, SEEK_CUR);
 }
 
+off_t FileHandle::size() const {
+	off_t cur = tell();
+	FileHandle* t = const_cast<FileHandle*>(this);
+	t->seek(0, SEEK_END);
+	off_t size = t->tell();
+	t->seek(cur, SEEK_SET);
+	return size;
+}
 
 #include "config.h"
 #ifdef HAVE_LIBKERN_OSBYTEORDER_H

@@ -27,10 +27,12 @@ protected:
 	uint32_t mFlags;	
 	
 	
-	void parseHeaders(FileHandle& fh, uint32_t& flags);
+	void readHeaders(FileHandle& fh, uint32_t& flags);
+	off_t findBlocks(FileHandle& fh, uint32_t flags, off_t uoff);
+	
 	Checksum checksum(ChecksumType type, const Buffer& buf);
 	
-	virtual void checkFileType(FileHandle &fh);
+	virtual void checkFileType(FileHandle &fh) { readHeaders(fh, mFlags); }
 	virtual void buildIndex(FileHandle& fh);
 	
 public:
