@@ -6,5 +6,8 @@
 	- Multiple in-flight requests?
 - Checksum blocks on decompression?
 - Test on multi-stream files
+	- pixz doesn't read its own streamed files :(  xz is ok though
+	- lzo, gz: we only see the first stream
+	- xz: block decode error
 
 - Way out there: Hierarchy based on tpxz files?
