@@ -40,7 +40,7 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
 	off_t pos = fh.tell() - BlockMagicBytes;
 	
 	size_t bits = 0; // how many bits from prev byte?
-	uint8_t byte;
+	uint8_t byte = 0;
 	while (true) {
 		if (test == BlockMagic)
 			addBlock(new Bzip2Block(pos, bits));

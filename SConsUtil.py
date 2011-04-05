@@ -60,7 +60,10 @@ def FindLib(conf, lib, managers = ['port', 'fink']):
 
 # Find a preferred compiler
 def FindCXX(conf, compilers = ['clang++', 'g++']):
-    for cxx in compilers + [conf.env['CXX']]:
+    compilers.append(conf.env['CXX'])
+    if 'CXX' in os.environ:
+        compilers.insert(0, os.environ['CXX'])
+    for cxx in compilers:
         conf.env['CXX'] = cxx
         print 'Checking if we can compile with %s' % cxx
         if conf.CheckCXX():

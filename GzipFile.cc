@@ -44,7 +44,8 @@ void GzipFile::buildIndex(FileHandle& fh) {
 	 * dictionary window. */
 	bool indep = false;	// Are we trying an independent decode?
 	bool backtrack = false; // Have we passed a block we may want?
-	off_t uoff, coff, bits;	// Info of block we're currently examining
+	// Info of block we're currently examining
+	off_t uoff = 0, coff = 0, bits = 0;
 	off_t lastIdx = 0;		// Uncompressed pos of last indexed block
 	
 	int err;
@@ -52,7 +53,8 @@ void GzipFile::buildIndex(FileHandle& fh) {
 		err = rd.block();
 		if (err == Z_OK || err == Z_STREAM_END) {
 			if (indep) {
-				if (rd.obytes() > WindowSize) { // Yay, uoff block is indep!
+				if (rd.obytes() > off_t(WindowSize)) {
+					// Yay, uoff block is indep!
 //					fprintf(stderr, "...ok, adding!\n");
 					addBlock(uoff, coff, bits);
 					lastIdx = uoff;
@@ -91,7 +93,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 //				fprintf(stderr, "...failed, rewinding!\n");
 				indep = false;
 				rd.restore();
-				if (rd.opos() - lastIdx > MinDictBlockSize) {
+				if (rd.opos() - lastIdx > off_t(MinDictBlockSize)) {
 					// Add a dict block
 //					fprintf(stderr, "Dict block\n");
 					Buffer& dict = addBlock(rd.opos(), rd.ipos(), rd.ibits());

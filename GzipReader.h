@@ -110,6 +110,8 @@ protected:
 	Wrapper mWrap;
 	
 	virtual Wrapper wrapper() const { return mWrap; }
+	
+	friend class SavingGzipReader;
 
 public:
 	PositionedGzipReader(FileHandle& fh, off_t opos = 0)
