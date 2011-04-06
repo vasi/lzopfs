@@ -9,40 +9,87 @@ const uint64_t PixzFile::MemLimit = UINT64_MAX;
 
 PixzFile::PixzFile(const std::string& path, uint64_t maxBlock)
 		: CompressedFile(path), mIndex(0) {
-	// As required in lzma/base.h
+	// As suggested in docs for LZMA_STREAM_INIT
 	memset(&mStream, 0, sizeof(lzma_stream));
-	
-	FileHandle fh(path, O_RDONLY);
+		
 	try {
-		// Read the footer
-		fh.seek(-LZMA_STREAM_HEADER_SIZE, SEEK_END);
-		Buffer footer;
-		fh.read(footer, LZMA_STREAM_HEADER_SIZE);
-		lzma_ret err = lzma_stream_footer_decode(&mFlags, &footer[0]);
+		FileHandle fh(path, O_RDONLY);
+		Buffer header;
+		fh.read(header, LZMA_STREAM_HEADER_SIZE);
+		lzma_stream_flags flags;
+		lzma_ret err = lzma_stream_header_decode(&flags, &header[0]);
 		if (err == LZMA_FORMAT_ERROR)
 			throwFormat("magic mismatch");
 		else if (err == LZMA_DATA_ERROR)
-			throwFormat("corrupt footer");
+			throwFormat("corrupt header");
 		else if (err == LZMA_OPTIONS_ERROR)
-			throwFormat("unsupported options in footer");
+			throwFormat("unsupported options in header");
 		else if (err != LZMA_OK)
-			throwFormat("unknown error in footer");
+			throwFormat("bad header");
 		
-		// Read the index
-		fh.seek(-LZMA_STREAM_HEADER_SIZE - mFlags.backward_size);
-		if (lzma_index_decoder(&mStream, &mIndex, MemLimit) != LZMA_OK)
-			throwFormat("error initializing index decoder");
-		if (code(fh) != LZMA_OK)
-			throwFormat("error decoding index");
+		mIndex = readIndex(fh);
 	} catch (FileHandle::EOFException& e) {
 		throwFormat("EOF");
 	}
 	
 	checkSizes(maxBlock);
 }
+	
+lzma_index *PixzFile::readIndex(FileHandle& fh) {
+	lzma_index *idx = 0;
+	Buffer buf;
+	
+	fh.seek(0, SEEK_END);
+	while (true) {
+		// Skip any padding. FIXME: Inefficient to read every 4 bytes!
+		off_t pad = 0;
+		while (true) {
+			if (fh.tell() < 4)
+				throwFormat("padding not allowed at start");
+			fh.seek(-4, SEEK_CUR);
+			fh.read(buf, 4);
+			if (*reinterpret_cast<uint32_t*>(&buf[0]) != 0)
+				break;
+			pad += 4;
+			fh.seek(-4, SEEK_CUR);
+		}
+		
+		// Read the footer
+		lzma_stream_flags flags;
+		fh.seek(-LZMA_STREAM_HEADER_SIZE, SEEK_CUR);
+		fh.read(buf, LZMA_STREAM_HEADER_SIZE);
+		lzma_ret err = lzma_stream_footer_decode(&flags, &buf[0]);
+		if (err != LZMA_OK)
+			throwFormat("bad footer");
+		off_t npos = fh.tell();
+		
+		// Read the index
+		fh.seek(-LZMA_STREAM_HEADER_SIZE - flags.backward_size, SEEK_CUR);
+		lzma_index *nidx;
+		if (lzma_index_decoder(&mStream, &nidx, MemLimit) != LZMA_OK)
+			throwFormat("error initializing index decoder");
+		if (code(fh) != LZMA_OK)
+			throwFormat("error decoding index");
+		npos -= lzma_index_file_size(nidx);
+		
+		// Set index params, combine with any later indices
+		if (lzma_index_stream_flags(nidx, &flags) != LZMA_OK)
+			throwFormat("error setting stream flags");
+		if (lzma_index_stream_padding(nidx, pad) != LZMA_OK)
+			throwFormat("error setting stream padding");
+		if (idx && lzma_index_cat(nidx, idx, NULL) != LZMA_OK)
+			throwFormat("error combining indices");
+		idx = nidx;
+		
+		if (npos == 0)
+			return idx;
+		fh.seek(npos, SEEK_SET);
+	}
+}
 
 PixzFile::~PixzFile() {
-	lzma_index_end(mIndex, 0);
+	if (mIndex)
+		lzma_index_end(mIndex, 0);
 	lzma_end(&mStream);
 }
 
@@ -72,14 +119,14 @@ lzma_ret PixzFile::code(FileHandle& fh) {
 
 void PixzFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {	
 //	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));
+	const PixzBlock& pb = dynamic_cast<const PixzBlock&>(b);
 	fh.seek(b.coff, SEEK_SET);
-	
 	
 	// Read the block header
 	lzma_block block;
 	memset(&block, 0, sizeof(block));
 	block.version = 0;
-	block.check = mFlags.check;
+	block.check = pb.check;
 	
 	lzma_filter filters[LZMA_FILTERS_MAX + 1];
 	filters[LZMA_FILTERS_MAX].id = LZMA_VLI_UNKNOWN;
@@ -119,7 +166,8 @@ void PixzFile::Iterator::makeBlock() {
 	mBlock.coff = mIter->block.compressed_file_offset;
 	mBlock.uoff = mIter->block.uncompressed_file_offset;
 	mBlock.csize = mIter->block.total_size;
-	mBlock.usize = mIter->block.uncompressed_size;			
+	mBlock.usize = mIter->block.uncompressed_size;	
+	mBlock.check = mIter->stream.flags->check;		
 }
 
 void PixzFile::Iterator::incr() {

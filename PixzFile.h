@@ -7,10 +7,14 @@
 #include <lzma.h>
 
 class PixzFile : public CompressedFile {
-protected:	
+protected:
+	struct PixzBlock : public Block {
+		lzma_check check;
+	};
+	
 	class Iterator : public BlockIteratorInner {
 		lzma_index_iter *mIter;
-		Block mBlock;
+		PixzBlock mBlock;
 		bool mEnd;
 		
 		virtual void makeBlock();
@@ -33,14 +37,13 @@ protected:
 	
 	
 	lzma_index *mIndex;
-	lzma_stream_flags mFlags;
-	
 	lzma_stream mStream;
 	Buffer mBuf;
 	
 	
 	lzma_ret code(FileHandle& fh);
-		
+	lzma_index *readIndex(FileHandle& fh);
+	
 public:
 	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
 		{ return new PixzFile(path, maxBlock); }
