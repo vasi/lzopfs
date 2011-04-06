@@ -94,6 +94,10 @@ int GzipReaderBase::block() {
 	return err;
 }
 
+void GzipReaderBase::reset(Wrapper w) {
+	throwEx("inflateReset", inflateReset2(&mStream, w));
+}
+
 GzipBlockReader::GzipBlockReader(FileHandle& fh, Buffer& ubuf,
 		const Block& b, const Buffer& dict, size_t bits)
 		: GzipReaderBase(fh), mOutBuf(ubuf) {
@@ -111,6 +115,19 @@ void GzipBlockReader::read() {
 		stepThrow(Z_NO_FLUSH);
 }
 
+void PositionedGzipReader::skipFooter() {
+	if (wrapper() == Gzip)
+		return; // footer should've been processed
+	const size_t footerSize = 8;
+	if (mStream.avail_in < footerSize) {
+		mFH.seek(footerSize - mStream.avail_in, SEEK_CUR);
+		mStream.avail_in = 0;
+	} else {
+		mStream.avail_in -= footerSize;
+		mStream.next_in += footerSize;
+	}
+}
+
 size_t SavingGzipReader::windowSize() const {
 	return GzipFile::WindowSize;
 }
@@ -123,7 +140,7 @@ void SavingGzipReader::save() {
 	mSaveSeek = mFH.tell();
 	
 	// Fixup state to correspond to where we were
-	throwEx("inflateReset", inflateReset2(&mStream, Raw));
+	reset(Raw);
 	
 	mInput = mSave->mInput;
 	mStream.avail_in = mSave->mStream.avail_in;

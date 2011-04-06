@@ -2,6 +2,8 @@
 
 #include "PathUtils.h"
 
+#define DEBUG(fmt, ...) //fprintf(stderr, fmt "\n", ##__VA_ARGS__)
+
 const size_t GzipFile::WindowSize = 1 << MAX_WBITS; 
 const uint64_t GzipFile::MinDictBlockSize = 32 * WindowSize; 
 
@@ -49,13 +51,13 @@ void GzipFile::buildIndex(FileHandle& fh) {
 	off_t lastIdx = 0;		// Uncompressed pos of last indexed block
 	
 	int err;
-	do {
+	while (true) {
 		err = rd.block();
 		if (err == Z_OK || err == Z_STREAM_END) {
 			if (indep) {
-				if (rd.obytes() > off_t(WindowSize)) {
+				if (rd.obytes() > off_t(WindowSize) || err == Z_STREAM_END) {
 					// Yay, uoff block is indep!
-//					fprintf(stderr, "...ok, adding!\n");
+					DEBUG("...ok, adding!");
 					addBlock(uoff, coff, bits);
 					lastIdx = uoff;
 					indep = false;
@@ -65,44 +67,52 @@ void GzipFile::buildIndex(FileHandle& fh) {
 					}
 					// If !backtrack, continue from where we're at 
 				} else if (rd.obytes() == 0) { // Zero-length block, ignore
-//					fprintf(stderr, "zero, rewinding!\n");
+					DEBUG("zero, rewinding!");
 					indep = false;
 					rd.restore();
 					continue;
 				} else {
-//					fprintf(stderr, "(backtrack)\n");
+					DEBUG("(backtrack)");
 					// Mark that there's a block between uoff and window end
 					backtrack = true;
 				}
+			}
+			
+			if (err == Z_STREAM_END) {
+				rd.skipFooter();
+				if (rd.ipos() == fh.size())
+					break;
+				else
+					rd.reset(GzipReaderBase::Gzip); // next stream
 			}
 			
 			if (!indep) { // Check if this new block is indep
 				uoff = rd.opos();
 				coff = rd.ipos();
 				bits = rd.ibits();
-//				fprintf(stderr, "Checking %lld, %lld\n", uoff, coff);
+				DEBUG("Checking %lld, %lld", uoff, coff);
 				rd.save();
 				backtrack = false;
 				indep = true;
-			}
+			}			
 		} else { // There was an error
 			if (!indep)
 				throwFormat(rd.zerr("gzip decode", err));
 			
 			if (indep) { // Indep decode failed, so rewind
-//				fprintf(stderr, "...failed, rewinding!\n");
+				DEBUG("...failed, rewinding!");
 				indep = false;
 				rd.restore();
 				if (rd.opos() - lastIdx > off_t(MinDictBlockSize)) {
 					// Add a dict block
-//					fprintf(stderr, "Dict block\n");
+					DEBUG("Dict block");
 					Buffer& dict = addBlock(rd.opos(), rd.ipos(), rd.ibits());
 					rd.copyWindow(dict);
 					lastIdx = rd.opos();
 				}
 			} 
 		}
-	} while (err != Z_STREAM_END);
+	}
 	setLastBlockSize(rd.opos(), rd.ipos());	
 //	dumpBlocks();
 }

@@ -57,6 +57,7 @@ public:
 	std::string zerr(const std::string& s, int err = Z_OK) const;
 	
 	int block(); // Read to next block
+	void reset(Wrapper w);
 	
 	off_t ipos() const { return mFH.tell() - mStream.avail_in; }
 	size_t ibits() const { return (mStream.data_type & 7); }
@@ -124,7 +125,11 @@ public:
 		std::swap(mWrap, o.mWrap);
 	}
 	
+	virtual void reset(Wrapper w)
+		{ mWrap = w; DiscardingGzipReader::reset(w); }
 	off_t opos() const { return mInitOutPos + obytes(); }
+	
+	void skipFooter();
 };
 
 class SavingGzipReader : public PositionedGzipReader {
@@ -140,6 +145,7 @@ public:
 		{ mOutBuf.resize(windowSize()); }
 	virtual ~SavingGzipReader() { if (mSave) delete mSave; }
 	
+	// Save the current state, and flush the dictionary
 	void save();
 	void restore();
 	
