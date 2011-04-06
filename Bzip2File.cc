@@ -30,36 +30,53 @@ void Bzip2File::checkFileType(FileHandle& fh) {
 }
 
 void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
-	// Find block boundary candidates
-	Buffer buf;
-	Buffer::const_iterator iter = buf.end();
+	// Populate table of how many bits back we may have to look.
+	// Safe to use one table, no byte is in it twice.
+	int8_t backBits[256];
+	for (size_t i = 0; i < 256; ++i)
+		backBits[i] = -1;
+	uint8_t m1 = BlockMagic >> ((BlockMagicBytes - 1) * 8),
+		m2 = (BlockMagic >> ((BlockMagicBytes - 2) * 8)) & 0xff,
+		e1 = EOSMagic >> ((BlockMagicBytes - 1) * 8),
+		e2 = (EOSMagic >> ((BlockMagicBytes - 2) * 8)) & 0xff;		
+	for (size_t i = 0; i < 8; ++i) {
+		uint8_t m = (m1 << i) | (m2 >> (8 - i)),
+			e = (e1 << i) | (e2 >> (8 - i));
+		backBits[m] = backBits[e] = i;
+	}
 	
+	uint8_t buf[ChunkSize];
 	fh.seek(0, SEEK_SET);
-	uint64_t test;
-	fh.readBE(test); // ok if we skip the first couple bytes
-	off_t pos = fh.tell() - BlockMagicBytes;
-	
-	size_t bits = 0; // how many bits from prev byte?
-	uint8_t byte = 0;
+	size_t bsz = fh.tryRead(buf, ChunkSize);
+	off_t rpos = bsz;
+	const size_t us = sizeof(uint64_t);
 	while (true) {
-		if (test == BlockMagic)
-			addBlock(new Bzip2Block(pos, bits));
-		if (test == EOSMagic) {
-			mEOS = pos;
-			mEOSBits = bits;
-			return;
-		}
-		
-		if (bits == 0) {
-			if (iter == buf.end()) {
-				fh.tryRead(buf, CompressedFile::ChunkSize);
-				iter = buf.begin();
+		const uint8_t *blast = buf + bsz - us;
+		for (uint8_t *i = buf; i < blast; ++i) {
+			const int8_t b = backBits[*i];
+			if (b == -1)
+				continue;
+			uint64_t v = *reinterpret_cast<uint64_t*>(i);
+			FileHandle::convertBE(v);
+			v >>= 16 + b;
+			const uint64_t u = *(i - 1);
+			v |= (u << (48 - b)) & BlockMagicMask;
+			
+			const off_t pos = rpos - (blast - i);
+			if (v == BlockMagic) {
+				addBlock(new Bzip2Block(pos, b));
+				//printf("magic %9lld\n", pos);
+			} else if (v == EOSMagic) {
+				mEOS = pos;
+				mEOSBits = b;
+				//printf("end %9lld\n", pos);
+				return;
 			}
-			++pos;
-			byte = *iter++;
 		}
-		bits = (bits + 7) % 8; // sub 1
-		test = (BlockMagicMask & (test << 1)) | (1 & (byte >> bits));
+		std::copy(buf + bsz - us - 1, buf + bsz, buf);
+		const size_t r = fh.tryRead(buf + us + 1, ChunkSize - us - 1);
+		bsz = r + us + 1;
+		rpos += r;
 	}
 }
 
@@ -124,6 +141,7 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 void Bzip2File::buildIndex(FileHandle& fh) {
 	findBlockBoundaryCandidates(fh);
 	dumpBlocks();
+	exit(1);
 	
 	for (BlockList::iterator i = mBlocks.begin(); i != mBlocks.end(); ++i) {		
 		Bzip2Block* bb = dynamic_cast<Bzip2Block*>(*i);
