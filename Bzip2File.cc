@@ -101,13 +101,17 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	s.next_in = reinterpret_cast<char*>(&in[0]);
 	s.avail_in = in.size();
 	Buffer out(CompressedFile::ChunkSize);
-	do {
+	while (true) {
 		s.next_out = reinterpret_cast<char*>(&out[0]);
 		s.avail_out = out.size();
 		err = BZ2_bzDecompress(&s);
-		if (err != BZ_OK && err != BZ_STREAM_END)
+		if (err == BZ_STREAM_END)
+			break;
+		if (err != BZ_OK)
 			throw std::runtime_error("bzip2 decompress");
-	} while (err != BZ_STREAM_END);
+		if (s.avail_in == 0 && s.avail_out == out.size())
+			throw std::runtime_error("bzip2 no progress");
+	}
 	
 	err = BZ2_bzDecompressEnd(&s);
 	if (err != BZ_OK)
@@ -121,9 +125,25 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 	findBlockBoundaryCandidates(fh);
 	dumpBlocks();
 	
-	const Bzip2Block* bb = dynamic_cast<const Bzip2Block*>(mBlocks.back());
-	bool ok = tryDecompress(fh, bb->coff, bb->bits, mEOS, mEOSBits);
-	if (ok) fprintf(stderr, "decomp ok!\n");
+	for (BlockList::iterator i = mBlocks.begin(); i != mBlocks.end(); ++i) {		
+		Bzip2Block* bb = dynamic_cast<Bzip2Block*>(*i);
+		off_t end;
+		size_t endbits;
+		if (i + 1 == mBlocks.end()) {
+			end = mEOS;
+			endbits = mEOSBits;
+		} else {
+			Bzip2Block* nb = dynamic_cast<Bzip2Block*>(*(i + 1));
+			end = nb->coff;
+			endbits = nb->bits;
+		}
+		try {
+			tryDecompress(fh, bb->coff, bb->bits, end, endbits);
+			fprintf(stderr, "decomp %9lld ok!\n", bb->coff);
+		} catch (std::runtime_error& e) {
+			fprintf(stderr, "error decomp %9lld: %s\n", bb->coff, e.what());
+		}
+	}
 	
 	exit(-1);
 }
