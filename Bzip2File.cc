@@ -62,7 +62,7 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
 			const uint64_t u = *(i - 1);
 			v |= (u << (48 - b)) & BlockMagicMask;
 			
-			const off_t pos = rpos - (blast - i);
+			const off_t pos = rpos - (buf + bsz - i);
 			if (v == BlockMagic) {
 				addBlock(new Bzip2Block(pos, b));
 				//printf("magic %9lld\n", pos);
@@ -141,7 +141,6 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 void Bzip2File::buildIndex(FileHandle& fh) {
 	findBlockBoundaryCandidates(fh);
 	dumpBlocks();
-	exit(1);
 	
 	for (BlockList::iterator i = mBlocks.begin(); i != mBlocks.end(); ++i) {		
 		Bzip2Block* bb = dynamic_cast<Bzip2Block*>(*i);
