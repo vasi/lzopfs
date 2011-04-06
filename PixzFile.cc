@@ -2,6 +2,8 @@
 
 #include "PathUtils.h"
 
+#include <cassert>
+
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
@@ -36,24 +38,34 @@ PixzFile::PixzFile(const std::string& path, uint64_t maxBlock)
 }
 	
 lzma_index *PixzFile::readIndex(FileHandle& fh) {
+	assert(ChunkSize % 4 == 0);
+	
 	lzma_index *idx = 0;
 	Buffer buf;
 	
 	fh.seek(0, SEEK_END);
 	while (true) {
-		// Skip any padding. FIXME: Inefficient to read every 4 bytes!
+		// Skip any padding.
 		off_t pad = 0;
 		while (true) {
-			if (fh.tell() < 4)
+			off_t p = fh.tell();
+			if (p < LZMA_STREAM_HEADER_SIZE)
 				throwFormat("padding not allowed at start");
-			fh.seek(-4, SEEK_CUR);
-			fh.read(buf, 4);
-			if (*reinterpret_cast<uint32_t*>(&buf[0]) != 0)
-				break;
-			pad += 4;
-			fh.seek(-4, SEEK_CUR);
+			size_t s = std::min(p, off_t(ChunkSize));
+			fh.seek(p - s, SEEK_SET);
+			fh.read(buf, s);
+			
+			for (uint8_t *f = &buf[buf.size() - 4]; f >= &buf[0]; f -= 4) {
+				if (*reinterpret_cast<uint32_t*>(f) != 0) {
+					fh.seek(f - &buf[0] - buf.size() + 4, SEEK_CUR);
+					goto footer;
+				}
+				pad += 4;
+			}
+			fh.seek(p - s, SEEK_SET);
 		}
-		
+	
+	footer:
 		// Read the footer
 		lzma_stream_flags flags;
 		fh.seek(-LZMA_STREAM_HEADER_SIZE, SEEK_CUR);
