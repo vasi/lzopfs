@@ -5,9 +5,10 @@ from SConsUtil import *
 # Parallel build
 SetOption('num_jobs', os.sysconf('SC_NPROCESSORS_ONLN'))
 
+opt = os.environ.get('OPT', '-O0')
 env = Environment(
     LINKFLAGS = '-g',
-    CPPFLAGS = '-Wall -g -O0')
+    CPPFLAGS = '-Wall -g %s' % opt)
 
 conf = Configure(env, help = False, config_h = 'config.h',
     custom_tests = { 'CheckPkg': CheckPkg, 'CheckMac': CheckMac })
