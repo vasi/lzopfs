@@ -30,8 +30,14 @@ void Bzip2File::checkFileType(FileHandle& fh) {
 }
 
 void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
-	// Populate table of how many bits back we may have to look.
-	// Safe to use one table, no byte is in it twice.
+	/* Block boundaries are not byte aligned, but checking each bit is
+	 * too expensive. So we only look at bytes that may be the first full
+	 * byte of a block magic number.
+	 *
+	 * We look up each byte in the table to determine whether it could be
+	 * the start of a magic number, and if so how many bits from the
+	 * previous byte we require. No first-byte appears twice in the shifted
+	 * magics, so a single table is fine. */
 	int8_t backBits[256];
 	for (size_t i = 0; i < 256; ++i)
 		backBits[i] = -1;
@@ -56,6 +62,8 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
 			const int8_t b = backBits[*i];
 			if (b == -1)
 				continue;
+			
+			// Candidate byte, check if this is a magic
 			uint64_t v = *reinterpret_cast<uint64_t*>(i);
 			FileHandle::convertBE(v);
 			v >>= 16 + b;
