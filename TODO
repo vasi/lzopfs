@@ -4,10 +4,7 @@
 - Multi-threaded
 	- Decompression threads
 	- Multiple in-flight requests?
+	- I/O thread?
 - Checksum blocks on decompression?
-- Test on multi-stream files
-	- pixz doesn't read its own streamed files :(  xz is ok though
-	- gz: we only see the first stream
-	- xz: block decode error (also, check padding? multi-check...)
 
 - Way out there: Hierarchy based on tpxz files?
