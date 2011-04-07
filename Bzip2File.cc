@@ -1,6 +1,5 @@
 #include "Bzip2File.h"
 
-#include "BitBuffer.h"
 #include "PathUtils.h"
 
 #include <bzlib.h>
@@ -90,32 +89,9 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
 
 bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 		off_t end, size_t endbits) {
-#if 0
-	// Create a buffer that looks like a one-block file
-	Buffer in;
-	BitBuffer ibuf(in);
+	/*** Create a buffer that looks like a one-block file ***/
 	
-	for (size_t i = 0; i < sizeof(Magic); ++i)
-		ibuf.put(8, Magic[i]);					// magic
-	ibuf.put(8, mLevel);						// level
-	
-	Buffer read;
-	fh.seek(coff - 1, SEEK_SET);
-	fh.read(read, end - fh.tell());
-	BitBuffer rbuf(read, 8 - bits);
-	ibuf.take(rbuf, 8 * (end - coff) + bits - endbits);	// data
-	
-	uint64_t eos = EOSMagic;
-	FileHandle::convertBE(eos);
-	uint8_t *eosp = reinterpret_cast<uint8_t*>(&eos) + sizeof(uint64_t)
-		- BlockMagicBytes;
-	for (size_t i = 0; i < BlockMagicBytes; ++i)
-		ibuf.put(8, eosp[i]);					// eos
-	
-	size_t crc = sizeof(Magic) + 1 + BlockMagicBytes;
-	for (size_t i = crc; i < crc + sizeof(uint32_t); ++i)
-		ibuf.put(8, in[i]);						// crc32
-#else
+	// Magic + level
 	const size_t prev = (bits ? 1 : 0);
 	const size_t sbits = 8 - bits;
 	Buffer in(sizeof(Magic) + sizeof(uint8_t) + prev + (end - coff)
@@ -125,6 +101,7 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	ip += sizeof(Magic);
 	*ip++ = mLevel;
 	
+	// Data
 	fh.seek(coff - prev, SEEK_SET);
 	const uint8_t *fp = ip + fh.tryRead(ip, end - coff + prev);
 	if (bits) {
@@ -132,6 +109,7 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 			*ip = (*ip << sbits) | (*(ip + 1) >> bits);
 	}
 	
+	// How many bits should be empty at the end?
 	const size_t ebitsp = 8 * prev - bits + endbits;
 	const size_t ebits = ebitsp % 8;
 	const size_t sebits = 8 - ebits;
@@ -139,6 +117,7 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	if (ebitsp >= 8)
 		*ip = 0;
 	
+	// Setup footer: EOS + CRC 
 	uint8_t fbuf[sizeof(uint64_t) + sizeof(uint32_t)];
 	uint64_t *eos = reinterpret_cast<uint64_t*>(fbuf);
 	*eos = EOSMagic;
@@ -147,18 +126,16 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	memcpy(crc, &in[sizeof(Magic) + sizeof(uint8_t) + BlockMagicBytes],
 		sizeof(uint32_t));
 	
+	// Write footer
 	const uint8_t *ep = fbuf + sizeof(uint64_t) - BlockMagicBytes;
 	if (ebits)
 		*(ip - 1) = ((*(ip - 1) >> ebits) << ebits) | (*ep >> sebits);
 	for (; ep < fbuf + sizeof(fbuf) - 1; ++ep)
 		*ip++ |= (*ep << ebits) | (*(ep + 1) >> sebits);
 	*ip++ |= *ep << ebits;
-#endif	
-	if (true) {
-		FileHandle w("block.bz2", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-		w.write(in);
-	}
 	
+	
+	// Do the decompression
 	bz_stream s;
 	s.bzalloc = NULL;
 	s.bzfree = NULL;
@@ -173,7 +150,6 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	while (true) {
 		s.next_out = reinterpret_cast<char*>(&out[0]);
 		s.avail_out = out.size();
-//		return true;
 		err = BZ2_bzDecompress(&s);
 		if (err == BZ_STREAM_END)
 			break;
@@ -193,17 +169,6 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 
 void Bzip2File::buildIndex(FileHandle& fh) {
 	findBlockBoundaryCandidates(fh);
-//	dumpBlocks();
-	
-	if (false) {
-		size_t testi = 13;
-		Bzip2Block *bb = dynamic_cast<Bzip2Block*>(mBlocks[testi]);
-		Bzip2Block *nb = dynamic_cast<Bzip2Block*>(mBlocks[testi + 1]);
-		fprintf(stderr, "%9lld %zu - %9lld %zu\n",
-			bb->coff, bb->bits, nb->coff, nb->bits);
-		tryDecompress(fh, bb->coff, bb->bits, nb->coff, nb->bits);
-		exit(1);
-	}
 	
 	for (BlockList::iterator i = mBlocks.begin(); i != mBlocks.end() - 1; ++i) {		
 		Bzip2Block* bb = dynamic_cast<Bzip2Block*>(*i);
