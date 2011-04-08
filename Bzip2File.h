@@ -24,6 +24,7 @@ protected:
 	struct Bzip2Block : public Block {
 		size_t bits, endbits;
 		char level;
+		Bzip2Block() { }
 		Bzip2Block(BlockBoundary& start, BlockBoundary& end, off_t uoff,
 				size_t usize)
 			: Block(usize, end.coff - start.coff, uoff, start.coff),
@@ -35,6 +36,10 @@ protected:
 		char level, off_t coff, size_t bits, off_t end, size_t endbits);
 	void decompress(const Buffer& in, Buffer& out);	
 	
+	virtual Block* newBlock() const { return new Bzip2Block(); }
+	virtual bool readBlock(FileHandle& fh, Block* b);
+	virtual void writeBlock(FileHandle& fh, const Block *b) const;
+
 public:
 	static const char Magic[];
 	static const uint64_t BlockMagic = 0x314159265359;

@@ -210,8 +210,6 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 	}
 }
 
-// FIXME: read/write index!
-
 void Bzip2File::decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf) {
 	Buffer in;
@@ -229,4 +227,27 @@ std::string Bzip2File::destName() const {
 	if (replaceExtension(base, "tbz2", "tar")) return base;
 	if (removeExtension(base, "bz2")) return base;
 	return base;
+}
+
+bool Bzip2File::readBlock(FileHandle& fh, Block *b) {
+	if (!IndexedCompFile::readBlock(fh, b))
+		return false;
+	
+	Bzip2Block *bb = dynamic_cast<Bzip2Block*>(b);
+	uint8_t bits;
+	fh.readBE(bits);
+	bb->bits = bits & 0xF;
+	bb->endbits = bits >> 4;
+	fh.readBE(bb->level);
+	
+	return true;
+}
+
+void Bzip2File::writeBlock(FileHandle& fh, const Block* b) const {
+	IndexedCompFile::writeBlock(fh, b);
+	
+	const Bzip2Block* bb = dynamic_cast<const Bzip2Block*>(b);
+	uint8_t bits = (bb->endbits << 4) + bb->bits;
+	fh.writeBE(bits);
+	fh.writeBE(bb->level);
 }
