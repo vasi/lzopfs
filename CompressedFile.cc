@@ -16,7 +16,13 @@ std::string CompressedFile::destName() const {
 }
 
 void CompressedFile::checkSizes(uint64_t maxBlock) const {
-	for (BlockIterator iter = findBlock(0); !iter.end(); ++iter) {
+	BlockIterator iter;
+	try {
+		iter = findBlock(0);
+	} catch (std::runtime_error& e) {
+		throw std::runtime_error("no blocks in file?");
+	}
+	for (; !iter.end(); ++iter) {
 		if (iter->usize > maxBlock) {
 			fprintf(stderr, "WARNING: %s has blocks too large to cache, "
 				"operations on it will be slow!\n", path().c_str());

@@ -59,17 +59,17 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl) {
 	size_t bsz = fh.tryRead(buf, ChunkSize);
 	off_t rpos = bsz; // next read pos
 	const size_t us = sizeof(uint64_t);
+	
+	const size_t ftsz = BlockMagicBytes + sizeof(uint32_t);
+	const size_t lcreset = sizeof(Magic) + 1;
+	size_t lcount = lcreset; // how many more bytes til we can find a level?
 	char level = 0;
+	
 	while (true) {
 		const uint8_t *blast = buf + bsz - us;
 		for (uint8_t *i = buf; i < blast; ++i) {
-			if (level == 0) { // Stream start
-				if (!std::equal(i, i + sizeof(Magic), Magic))
-					throwFormat("can't find BZh magic");
-				level = i[sizeof(Magic)];
-				i += sizeof(Magic); // +1 from loop counter
-				continue;
-			}
+			if (lcount && !--lcount)
+				level = *i;
 			
 			const int8_t b = backBits[*i];
 			if (b == -1)
@@ -84,18 +84,16 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl) {
 			
 			const off_t pos = rpos - (buf + bsz - i);
 			if (v == BlockMagic || v == EOSMagic) {
+//				fprintf(stderr, "%s %c %9lld %zu\n",
+//					(v == BlockMagic ? "block" : "eos  "), level, pos, b);
 				bl.push_back(BlockBoundary(v, level, pos, b));
-				i += BlockMagicBytes;
-				
-				if (v == EOSMagic) { // Move to start of stream
-					level = 0;
-					i += sizeof(uint32_t) - 1;
-				}
+				if (v == EOSMagic)
+					lcount = ftsz + lcreset;;
 			}
 		}
-		std::copy(buf + bsz - us - 1, buf + bsz, buf);
-		if (level == 0 && rpos == fsz)
+		if (fsz == rpos)
 			return;
+		std::copy(buf + bsz - us - 1, buf + bsz, buf);
 		const size_t r = fh.tryRead(buf + us + 1, ChunkSize - us - 1);
 		bsz = r + us + 1;
 		rpos += r;
@@ -195,21 +193,28 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 	off_t uoff = 0;
 	Buffer in, out;
 	BoundList::iterator i = bl.begin(), j = bl.begin();
+	char level = i->level;
 	for (++j; j != bl.end(); ) {
-		if (i->magic == EOSMagic)
-			continue;
-		createAlignedBlock(fh, in, i->level, i->coff, i->bits, j->coff,
-			j->bits);
-		try {
-			decompress(in, out);
-			addBlock(new Bzip2Block(*i, *j, uoff, out.size()));
+		if (i->magic != EOSMagic) {
+			if (level == 0)
+				level = i->level;
+//			fprintf(stderr, "level = %c\n", level);
+			createAlignedBlock(fh, in, level, i->coff, i->bits, j->coff,
+				j->bits);			
+			try {
+				decompress(in, out);
+			} catch (std::runtime_error& e) { // Boundary spurious, remove it
+//				fprintf(stderr, "failed! %9lld -- %9lld\n", i->coff, j->coff);
+				bl.erase(j++);
+				continue;
+			}
+//			fprintf(stderr, "ok! %9lld -- %9lld\n", i->coff, j->coff);
+			addBlock(new Bzip2Block(*i, *j, uoff, out.size(), level));
 			uoff += out.size();
-			++i; ++j;
-		} catch (std::runtime_error& e) { // Boundary was spurious, remove it
-			// FIXME: spurious EOS?
-			// FIXME: MUST decompress til end
-			bl.erase(j++);
+			if (j->magic == EOSMagic)
+				level = 0;
 		}
+		++i; ++j;
 	}
 }
 

@@ -26,9 +26,9 @@ protected:
 		char level;
 		Bzip2Block() { }
 		Bzip2Block(BlockBoundary& start, BlockBoundary& end, off_t uoff,
-				size_t usize)
+				size_t usize, char lev)
 			: Block(usize, end.coff - start.coff, uoff, start.coff),
-			bits(start.bits), endbits(end.bits), level(start.level) { }
+			bits(start.bits), endbits(end.bits), level(lev) { }
 	};
 	
 	void findBlockBoundaryCandidates(FileHandle& fh, BoundList& bl);

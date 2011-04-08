@@ -25,13 +25,14 @@ public:
 	
 	public:
 		BlockIterator(BlockIteratorInner *i) : mInner(i) { }
-		virtual ~BlockIterator() { delete mInner; }
+		virtual ~BlockIterator() { if (mInner) delete mInner; }
 		
 		BlockIterator& operator++() { mInner->incr(); return *this; }
 		const Block *operator->() const { return &**this; }
 		const Block& operator*() const { return mInner->deref(); }
 		bool end() const { return mInner->end(); }
-				
+		
+		BlockIterator() : mInner(0) { }
 		BlockIterator(const BlockIterator& o) : mInner(o.mInner->dup()) { }
 		BlockIterator &operator=(BlockIterator o)
 			{ std::swap(mInner, o.mInner); return *this; }
