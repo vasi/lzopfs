@@ -121,3 +121,8 @@ void FileHandle::convertLEBuf(char *buf, size_t size) {
 		std::reverse(buf, buf + size);
 	#endif	
 }
+
+void FileHandle::writeBuf(const Buffer& b, const std::string& path) {
+	FileHandle fh(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	fh.write(b);
+}

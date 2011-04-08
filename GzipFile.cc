@@ -2,8 +2,6 @@
 
 #include "PathUtils.h"
 
-#define DEBUG(fmt, ...) //fprintf(stderr, fmt "\n", ##__VA_ARGS__)
-
 const size_t GzipFile::WindowSize = 1 << MAX_WBITS; 
 const uint64_t GzipFile::MinDictBlockSize = 32 * WindowSize; 
 

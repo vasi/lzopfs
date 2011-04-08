@@ -61,8 +61,8 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl) {
 	const size_t us = sizeof(uint64_t);
 	
 	const size_t ftsz = BlockMagicBytes + sizeof(uint32_t);
-	const size_t lcreset = sizeof(Magic) + 1;
-	size_t lcount = lcreset; // how many more bytes til we can find a level?
+	const size_t lcreset = sizeof(Magic);
+	size_t lcount = lcreset + 1; // how many more bytes til we can find a level?
 	char level = 0;
 	
 	while (true) {
@@ -84,11 +84,11 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl) {
 			
 			const off_t pos = rpos - (buf + bsz - i);
 			if (v == BlockMagic || v == EOSMagic) {
-//				fprintf(stderr, "%s %c %9lld %zu\n",
-//					(v == BlockMagic ? "block" : "eos  "), level, pos, b);
+				DEBUG("%s %c %9lld %zu",
+					(v == BlockMagic ? "block" : "eos  "), level, pos, b);
 				bl.push_back(BlockBoundary(v, level, pos, b));
 				if (v == EOSMagic)
-					lcount = ftsz + lcreset;;
+					lcount = ftsz + lcreset;
 			}
 		}
 		if (fsz == rpos)
@@ -198,17 +198,18 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 		if (i->magic != EOSMagic) {
 			if (level == 0)
 				level = i->level;
-//			fprintf(stderr, "level = %c\n", level);
+			//DEBUG("level = %c", level);
 			createAlignedBlock(fh, in, level, i->coff, i->bits, j->coff,
 				j->bits);			
 			try {
 				decompress(in, out);
 			} catch (std::runtime_error& e) { // Boundary spurious, remove it
-//				fprintf(stderr, "failed! %9lld -- %9lld\n", i->coff, j->coff);
+				DEBUG("failed! %9lld -- %9lld", i->coff, j->coff);
+				//FileHandle::writeBuf(in, "block.bz2"); exit(-1);
 				bl.erase(j++);
 				continue;
 			}
-//			fprintf(stderr, "ok! %9lld -- %9lld\n", i->coff, j->coff);
+			DEBUG("ok! %9lld -- %9lld", i->coff, j->coff);
 			addBlock(new Bzip2Block(*i, *j, uoff, out.size(), level));
 			uoff += out.size();
 			if (j->magic == EOSMagic)

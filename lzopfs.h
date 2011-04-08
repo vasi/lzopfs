@@ -4,6 +4,8 @@
 #include <vector>
 #include <stdint.h>
 
+#define DEBUG(fmt, ...) //fprintf(stderr, fmt "\n", ##__VA_ARGS__)
+
 typedef std::vector<uint8_t> Buffer;
 
 struct Block {

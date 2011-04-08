@@ -29,6 +29,8 @@ public:
 		EOFException(const std::string& s) : std::runtime_error(s) { }
 	};
 	
+	static void writeBuf(const Buffer& b, const std::string& path);
+	
 	FileHandle(int fd = -1) : mFD(fd), mOwnFD(false) { }
 	FileHandle(const std::string& path, int flags, mode_t mode = 0444);
 	virtual ~FileHandle();
