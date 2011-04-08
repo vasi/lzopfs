@@ -1,6 +1,4 @@
 - Write README
-- Add support for other compression formats (bzip2 + pbzip2)
-- Remove debug messages
 - Multi-threaded
 	- Decompression threads
 	- Multiple in-flight requests?
