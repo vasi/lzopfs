@@ -146,8 +146,8 @@ void Bzip2File::createAlignedBlock(FileHandle& fh, Buffer& b,
 	if (ebits)
 		*(ip - 1) = ((*(ip - 1) >> ebits) << ebits) | (*ep >> sebits);
 	for (; ep < fbuf + sizeof(fbuf) - 1; ++ep)
-		*ip++ |= (*ep << ebits) | (*(ep + 1) >> sebits);
-	*ip++ |= *ep << ebits;
+		*ip++ = (*ep << ebits) | (*(ep + 1) >> sebits);
+	*ip++ = *ep << ebits;
 }
 	
 void Bzip2File::decompress(const Buffer& in, Buffer& out) {
@@ -200,52 +200,27 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 		BoundList::iterator j(i + 1);
 		createAlignedBlock(fh, in, i->level, i->coff, i->bits, j->coff,
 			j->bits);
+		decompress(in, out);
 		try {
-			printf("coff = %9lld\n", i->coff);
-			{
-				FileHandle w("block.bz2", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-				w.write(in);
-			}
-			decompress(in, out);
-			addBlock(new Bzip2Block(*i, *j, out.size(), uoff));
+			addBlock(new Bzip2Block(*i, *j, uoff, out.size()));
 			uoff += out.size();
 		} catch (std::runtime_error& e) {
 			throw; // FIXME
 		}
 	}
-	dumpBlocks();
-	
-	exit(-1);
-	
-/*
-	for (BlockList::iterator i = mBlocks.begin(); i != mBlocks.end() - 1; ++i) {		
-		Bzip2Block* bb = dynamic_cast<Bzip2Block*>(*i);
-		off_t end;
-		size_t endbits;
-		if (i + 1 == mBlocks.end()) {
-			end = mEOS;
-			endbits = mEOSBits;
-		} else {
-			Bzip2Block* nb = dynamic_cast<Bzip2Block*>(*(i + 1));
-			end = nb->coff;
-			endbits = nb->bits;
-		}
-		try {
-			tryDecompress(fh, bb->coff, bb->bits, end, endbits);
-			fprintf(stderr, "decomp %9lld ok!\n", bb->coff);
-		} catch (std::runtime_error& e) {
-			fprintf(stderr, "error decomp #%td - %9lld: %s\n",
-				i - mBlocks.begin(), bb->coff, e.what());
-			exit(-1);
-		}
-	}
-*/	
-	exit(-1);
 }
+
+// FIXME: read/write index!
 
 void Bzip2File::decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf) {
-	// FIXME
+	Buffer in;
+	const Bzip2Block& bb = dynamic_cast<const Bzip2Block&>(b);
+	createAlignedBlock(fh, in, bb.level, bb.coff, bb.bits,
+		bb.coff + bb.csize, bb.endbits);
+	decompress(in, ubuf);
+	if (ubuf.size() != bb.usize)
+		throw std::runtime_error("bzip2 block decompresses to wrong size");
 }
 
 std::string Bzip2File::destName() const {
