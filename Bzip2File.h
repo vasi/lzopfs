@@ -19,7 +19,7 @@ protected:
 		BlockBoundary(uint64_t m, char l, off_t c, size_t b)
 			: magic(m), level(l), coff(c), bits(b) { }
 	};
-	typedef std::vector<BlockBoundary> BoundList;
+	typedef std::list<BlockBoundary> BoundList;
 	
 	struct Bzip2Block : public Block {
 		size_t bits, endbits;

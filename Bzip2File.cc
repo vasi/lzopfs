@@ -194,18 +194,21 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 	// Build blocklist from boundaries
 	off_t uoff = 0;
 	Buffer in, out;
-	for (BoundList::iterator i = bl.begin(); i + 1 != bl.end(); ++i) {
+	BoundList::iterator i = bl.begin(), j = bl.begin();
+	for (++j; j != bl.end(); ) {
 		if (i->magic == EOSMagic)
 			continue;
-		BoundList::iterator j(i + 1);
 		createAlignedBlock(fh, in, i->level, i->coff, i->bits, j->coff,
 			j->bits);
-		decompress(in, out);
 		try {
+			decompress(in, out);
 			addBlock(new Bzip2Block(*i, *j, uoff, out.size()));
 			uoff += out.size();
-		} catch (std::runtime_error& e) {
-			throw; // FIXME
+			++i; ++j;
+		} catch (std::runtime_error& e) { // Boundary was spurious, remove it
+			// FIXME: spurious EOS?
+			// FIXME: MUST decompress til end
+			bl.erase(j++);
 		}
 	}
 }
