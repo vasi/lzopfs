@@ -4,23 +4,36 @@
 #include "lzopfs.h"
 #include "CompressedFile.h"
 
+#include <list>
+
 class Bzip2File : public IndexedCompFile {
 protected:
 	virtual void checkFileType(FileHandle &fh);
 	virtual void buildIndex(FileHandle& fh);
 	
-	struct Bzip2Block : public Block {
+	struct BlockBoundary {
+		uint64_t magic;
+		char level;
+		off_t coff;
 		size_t bits;
-		Bzip2Block(off_t coff, size_t b) : Block(0, 0, 0, coff), bits(b) { }
+		BlockBoundary(uint64_t m, char l, off_t c, size_t b)
+			: magic(m), level(l), coff(c), bits(b) { }
+	};
+	typedef std::vector<BlockBoundary> BoundList;
+	
+	struct Bzip2Block : public Block {
+		size_t bits, endbits;
+		char level;
+		Bzip2Block(BlockBoundary& start, BlockBoundary& end, off_t uoff,
+				size_t usize)
+			: Block(usize, end.coff - start.coff, uoff, start.coff),
+			bits(start.bits), endbits(end.bits), level(start.level) { }
 	};
 	
-	char mLevel;
-	off_t mEOS;
-	size_t mEOSBits;
-	
-	void findBlockBoundaryCandidates(FileHandle& fh);
-	bool tryDecompress(FileHandle& fh, off_t coff, size_t bits,
-		off_t end, size_t endbits);
+	void findBlockBoundaryCandidates(FileHandle& fh, BoundList& bl);
+	void createAlignedBlock(FileHandle& fh, Buffer& b,
+		char level, off_t coff, size_t bits, off_t end, size_t endbits);
+	void decompress(const Buffer& in, Buffer& out);	
 	
 public:
 	static const char Magic[];

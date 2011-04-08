@@ -2,6 +2,8 @@
 
 #include "PathUtils.h"
 
+#include <algorithm>
+
 #include <bzlib.h>
 
 const char Bzip2File::Magic[3] = { 'B', 'Z', 'h' };
@@ -13,8 +15,9 @@ void Bzip2File::checkFileType(FileHandle& fh) {
 		if (!std::equal(buf.begin(), buf.end(), Magic))
 			throwFormat("magic");
 		
-		fh.readBE(mLevel);
-		if (mLevel < '1' || mLevel > '9')
+		char level;
+		fh.readBE(level);
+		if (level < '1' || level > '9')
 			throwFormat("invalid level");
 		
 		uint64_t bm;
@@ -28,7 +31,7 @@ void Bzip2File::checkFileType(FileHandle& fh) {
 	}
 }
 
-void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
+void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl) {
 	/* Block boundaries are not byte aligned, but checking each bit is
 	 * too expensive. So we only look at bytes that may be the first full
 	 * byte of a block magic number.
@@ -50,14 +53,24 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
 		backBits[m] = backBits[e] = i;
 	}
 	
+	const off_t fsz = fh.size();
 	uint8_t buf[ChunkSize];
 	fh.seek(0, SEEK_SET);
 	size_t bsz = fh.tryRead(buf, ChunkSize);
-	off_t rpos = bsz;
+	off_t rpos = bsz; // next read pos
 	const size_t us = sizeof(uint64_t);
+	char level = 0;
 	while (true) {
 		const uint8_t *blast = buf + bsz - us;
 		for (uint8_t *i = buf; i < blast; ++i) {
+			if (level == 0) { // Stream start
+				if (!std::equal(i, i + sizeof(Magic), Magic))
+					throwFormat("can't find BZh magic");
+				level = i[sizeof(Magic)];
+				i += sizeof(Magic); // +1 from loop counter
+				continue;
+			}
+			
 			const int8_t b = backBits[*i];
 			if (b == -1)
 				continue;
@@ -65,41 +78,42 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh) {
 			// Candidate byte, check if this is a magic
 			uint64_t v = *reinterpret_cast<uint64_t*>(i);
 			FileHandle::convertBE(v);
-			v >>= 16 + b;
+			v >>= 8 * (sizeof(uint64_t) - BlockMagicBytes) + b;
 			const uint64_t u = *(i - 1);
-			v |= (u << (48 - b)) & BlockMagicMask;
+			v |= (u << ((8 * BlockMagicBytes) - b)) & BlockMagicMask;
 			
 			const off_t pos = rpos - (buf + bsz - i);
-			if (v == BlockMagic) {
-				addBlock(new Bzip2Block(pos, b));
-				//printf("magic %9lld\n", pos);
-			} else if (v == EOSMagic) {
-				mEOS = pos;
-				mEOSBits = b;
-				//printf("end %9lld\n", pos);
-				return;
+			if (v == BlockMagic || v == EOSMagic) {
+				bl.push_back(BlockBoundary(v, level, pos, b));
+				i += BlockMagicBytes;
+				
+				if (v == EOSMagic) { // Move to start of stream
+					level = 0;
+					i += sizeof(uint32_t) - 1;
+				}
 			}
 		}
 		std::copy(buf + bsz - us - 1, buf + bsz, buf);
+		if (level == 0 && rpos == fsz)
+			return;
 		const size_t r = fh.tryRead(buf + us + 1, ChunkSize - us - 1);
 		bsz = r + us + 1;
 		rpos += r;
 	}
 }
 
-bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
-		off_t end, size_t endbits) {
-	/*** Create a buffer that looks like a one-block file ***/
-	
+// Create a buffer that looks like a one-block file
+void Bzip2File::createAlignedBlock(FileHandle& fh, Buffer& b,
+		char level, off_t coff, size_t bits, off_t end, size_t endbits) {
 	// Magic + level
 	const size_t prev = (bits ? 1 : 0);
 	const size_t sbits = 8 - bits;
-	Buffer in(sizeof(Magic) + sizeof(uint8_t) + prev + (end - coff)
+	b.resize(sizeof(Magic) + sizeof(uint8_t) + prev + (end - coff)
 		+ BlockMagicBytes + sizeof(uint32_t));
-	uint8_t *ip = &in[0];
-	memcpy(ip, Magic, sizeof(Magic));
+	uint8_t *ip = &b[0];
+	std::copy(Magic, Magic + sizeof(Magic), ip);
 	ip += sizeof(Magic);
-	*ip++ = mLevel;
+	*ip++ = level;
 	
 	// Data
 	fh.seek(coff - prev, SEEK_SET);
@@ -123,8 +137,9 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	*eos = EOSMagic;
 	FileHandle::convertBE(*eos);
 	uint32_t *crc = reinterpret_cast<uint32_t*>(fbuf + sizeof(uint64_t));
-	memcpy(crc, &in[sizeof(Magic) + sizeof(uint8_t) + BlockMagicBytes],
-		sizeof(uint32_t));
+	const uint32_t* const icrc = reinterpret_cast<const uint32_t*>(
+		&b[sizeof(Magic) + sizeof(uint8_t) + BlockMagicBytes]);
+	*crc = *icrc;
 	
 	// Write footer
 	const uint8_t *ep = fbuf + sizeof(uint64_t) - BlockMagicBytes;
@@ -133,9 +148,9 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	for (; ep < fbuf + sizeof(fbuf) - 1; ++ep)
 		*ip++ |= (*ep << ebits) | (*(ep + 1) >> sebits);
 	*ip++ |= *ep << ebits;
+}
 	
-	
-	// Do the decompression
+void Bzip2File::decompress(const Buffer& in, Buffer& out) {
 	bz_stream s;
 	s.bzalloc = NULL;
 	s.bzfree = NULL;
@@ -144,12 +159,19 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	if (err != BZ_OK)
 		throw std::runtime_error("bzip2 init");
 	
-	s.next_in = reinterpret_cast<char*>(&in[0]);
+	s.next_in = const_cast<char*>(reinterpret_cast<const char*>(&in[0]));
 	s.avail_in = in.size();
-	Buffer out(CompressedFile::ChunkSize);
-	while (true) {
+	if (!out.empty())
 		s.next_out = reinterpret_cast<char*>(&out[0]);
-		s.avail_out = out.size();
+	s.avail_out = out.size();
+	
+	while (true) {
+		if (s.avail_out == 0) {
+			out.resize(out.size() + ChunkSize);
+			s.next_out = reinterpret_cast<char*>(
+				&out[out.size() - ChunkSize]);
+			s.avail_out = ChunkSize;
+		}
 		err = BZ2_bzDecompress(&s);
 		if (err == BZ_STREAM_END)
 			break;
@@ -162,14 +184,40 @@ bool Bzip2File::tryDecompress(FileHandle& fh, off_t coff, size_t bits,
 	err = BZ2_bzDecompressEnd(&s);
 	if (err != BZ_OK)
 		throw std::runtime_error("bzip2 end");
-		
-	return true;
-	// fixme: return false?
+	out.resize(out.size() - s.avail_out);
 }
 
 void Bzip2File::buildIndex(FileHandle& fh) {
-	findBlockBoundaryCandidates(fh);
+	BoundList bl;
+	findBlockBoundaryCandidates(fh, bl);
 	
+	// Build blocklist from boundaries
+	off_t uoff = 0;
+	Buffer in, out;
+	for (BoundList::iterator i = bl.begin(); i + 1 != bl.end(); ++i) {
+		if (i->magic == EOSMagic)
+			continue;
+		BoundList::iterator j(i + 1);
+		createAlignedBlock(fh, in, i->level, i->coff, i->bits, j->coff,
+			j->bits);
+		try {
+			printf("coff = %9lld\n", i->coff);
+			{
+				FileHandle w("block.bz2", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+				w.write(in);
+			}
+			decompress(in, out);
+			addBlock(new Bzip2Block(*i, *j, out.size(), uoff));
+			uoff += out.size();
+		} catch (std::runtime_error& e) {
+			throw; // FIXME
+		}
+	}
+	dumpBlocks();
+	
+	exit(-1);
+	
+/*
 	for (BlockList::iterator i = mBlocks.begin(); i != mBlocks.end() - 1; ++i) {		
 		Bzip2Block* bb = dynamic_cast<Bzip2Block*>(*i);
 		off_t end;
@@ -191,12 +239,13 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 			exit(-1);
 		}
 	}
-	
+*/	
 	exit(-1);
 }
 
 void Bzip2File::decompressBlock(FileHandle& fh, const Block& b,
 		Buffer& ubuf) {
+	// FIXME
 }
 
 std::string Bzip2File::destName() const {
