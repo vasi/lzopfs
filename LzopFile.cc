@@ -136,16 +136,15 @@ LzopFile::LzopFile(const std::string& path, uint64_t maxBlock)
 	initialize(maxBlock);
 }
 
-void LzopFile::decompressBlock(FileHandle& fh, const Block& b,
-		Buffer& ubuf) {
-	fh.seek(b.coff, SEEK_SET);	
+void LzopFile::decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const {
 	if (b.csize == b.usize) { // Uncompressed, just read it
-		fh.read(ubuf, b.usize);
+		fh.pread(b.coff, ubuf, b.usize);
 		return;
 	}
 	
 	Buffer cbuf;
-	fh.read(cbuf, b.csize);	
+	fh.pread(b.coff, cbuf, b.csize);	
 	
 	ubuf.resize(b.usize);
 	lzo_uint usize = b.usize;

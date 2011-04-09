@@ -11,9 +11,6 @@ const uint64_t PixzFile::MemLimit = UINT64_MAX;
 
 PixzFile::PixzFile(const std::string& path, uint64_t maxBlock)
 		: CompressedFile(path), mIndex(0) {
-	// As suggested in docs for LZMA_STREAM_INIT
-	memset(&mStream, 0, sizeof(lzma_stream));
-		
 	try {
 		FileHandle fh(path, O_RDONLY);
 		Buffer header;
@@ -42,6 +39,8 @@ lzma_index *PixzFile::readIndex(FileHandle& fh) {
 	
 	lzma_index *idx = 0;
 	Buffer buf;
+	lzma_stream s;
+	streamInit(s);
 	
 	fh.seek(0, SEEK_END);
 	while (true) {
@@ -78,9 +77,9 @@ lzma_index *PixzFile::readIndex(FileHandle& fh) {
 		// Read the index
 		fh.seek(-LZMA_STREAM_HEADER_SIZE - flags.backward_size, SEEK_CUR);
 		lzma_index *nidx;
-		if (lzma_index_decoder(&mStream, &nidx, MemLimit) != LZMA_OK)
+		if (lzma_index_decoder(&s, &nidx, MemLimit) != LZMA_OK)
 			throwFormat("error initializing index decoder");
-		if (code(fh) != LZMA_OK)
+		if (code(s, fh) != LZMA_OK)
 			throwFormat("error decoding index");
 		npos -= lzma_index_file_size(nidx);
 		
@@ -102,7 +101,11 @@ lzma_index *PixzFile::readIndex(FileHandle& fh) {
 PixzFile::~PixzFile() {
 	if (mIndex)
 		lzma_index_end(mIndex, 0);
-	lzma_end(&mStream);
+}
+
+void PixzFile::streamInit(lzma_stream& s) const {
+	// As suggested in docs for LZMA_STREAM_INIT
+	memset(&s, 0, sizeof(lzma_stream));		
 }
 
 CompressedFile::BlockIterator PixzFile::findBlock(off_t off) const {
@@ -114,25 +117,41 @@ CompressedFile::BlockIterator PixzFile::findBlock(off_t off) const {
 }
 
 // Output should be already set up
-lzma_ret PixzFile::code(FileHandle& fh) {
-	lzma_ret err = LZMA_OK;
-	mStream.avail_in = 0;
-	while (err != LZMA_STREAM_END) {
-		if (mStream.avail_in == 0) {
-			mStream.avail_in = fh.tryRead(mBuf, ChunkSize);
-			mStream.next_in = &mBuf[0];
+lzma_ret PixzFile::code(lzma_stream& s, const FileHandle& fh, off_t off)
+		const {
+	try {
+		if (off == -1)
+			off = fh.tell();
+	
+		Buffer buf;
+		lzma_ret err = LZMA_OK;
+		s.avail_in = 0;
+		while (err != LZMA_STREAM_END) {
+			if (s.avail_in == 0) {
+				s.avail_in = fh.tryPRead(off, buf, ChunkSize);
+				off += buf.size();
+				s.next_in = &buf[0];
+			}
+			err = lzma_code(&s, LZMA_RUN);
+			if (err != LZMA_OK && err != LZMA_STREAM_END)
+				break;
 		}
-		err = lzma_code(&mStream, LZMA_RUN);
-		if (err != LZMA_OK && err != LZMA_STREAM_END)
-			return err;
+		
+		lzma_end(&s);
+		if (err == LZMA_STREAM_END)
+			err = LZMA_OK;
+		return err;
+		
+	} catch (...) {
+		lzma_end(&s);
+		throw;
 	}
-	return LZMA_OK;
 }
 
-void PixzFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {	
+void PixzFile::decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const {	
 //	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));
 	const PixzBlock& pb = dynamic_cast<const PixzBlock&>(b);
-	fh.seek(b.coff, SEEK_SET);
 	
 	// Read the block header
 	lzma_block block;
@@ -145,10 +164,10 @@ void PixzFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
 	block.filters = filters;
 	
 	Buffer header;
-	fh.read(header, 1);
+	fh.pread(b.coff, header, 1);
 	block.header_size = lzma_block_header_size_decode(header[0]);	
 	header.resize(block.header_size);
-	fh.read(&header[1], block.header_size - 1);
+	fh.pread(b.coff + 1, &header[1], block.header_size - 1);
 	
 	lzma_ret err = lzma_block_header_decode(&block, NULL, &header[0]);
 	if (err == LZMA_DATA_ERROR)
@@ -160,13 +179,15 @@ void PixzFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
 	
 	
 	// Decode the block
-	if (lzma_block_decoder(&mStream, &block) != LZMA_OK)
+	lzma_stream s;
+	streamInit(s);
+	if (lzma_block_decoder(&s, &block) != LZMA_OK)
 		throw std::runtime_error("error initializing block decoder");
 	
 	ubuf.resize(b.usize);
-	mStream.next_out = &ubuf[0];
-	mStream.avail_out = ubuf.size();
-	if (code(fh) != LZMA_OK)
+	s.next_out = &ubuf[0];
+	s.avail_out = ubuf.size();
+	if (code(s, fh, b.coff + block.header_size) != LZMA_OK)
 		throw std::runtime_error("error decoding block");
 }
 

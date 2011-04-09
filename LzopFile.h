@@ -43,8 +43,8 @@ public:
 	
 	virtual std::string destName() const;
 	
-	virtual void decompressBlock(FileHandle& fh, const Block& b,
-		Buffer& ubuf);
+	virtual void decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const;
 };
 
 #endif // LZOPFILE_H

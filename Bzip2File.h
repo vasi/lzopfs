@@ -31,10 +31,10 @@ protected:
 			bits(start.bits), endbits(end.bits), level(lev) { }
 	};
 	
-	void findBlockBoundaryCandidates(FileHandle& fh, BoundList& bl);
-	void createAlignedBlock(FileHandle& fh, Buffer& b,
-		char level, off_t coff, size_t bits, off_t end, size_t endbits);
-	void decompress(const Buffer& in, Buffer& out);	
+	void findBlockBoundaryCandidates(FileHandle& fh, BoundList& bl) const;
+	void createAlignedBlock(const FileHandle& fh, Buffer& b,
+		char level, off_t coff, size_t bits, off_t end, size_t endbits) const;
+	void decompress(const Buffer& in, Buffer& out) const;
 	
 	virtual Block* newBlock() const { return new Bzip2Block(); }
 	virtual bool readBlock(FileHandle& fh, Block* b);
@@ -55,8 +55,8 @@ public:
 	
 	virtual std::string destName() const;
 	
-	virtual void decompressBlock(FileHandle& fh, const Block& b,
-		Buffer& ubuf);
+	virtual void decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const;
 };
 
 #endif // BZIP2FILE_H

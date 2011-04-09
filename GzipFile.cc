@@ -120,7 +120,8 @@ GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)
 	initialize(maxBlock);
 }
 
-void GzipFile::decompressBlock(FileHandle& fh, const Block& b, Buffer& ubuf) {
+void GzipFile::decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const {
 	const GzipBlock& gb = dynamic_cast<const GzipBlock&>(b);
 	ubuf.resize(gb.usize);
 	GzipBlockReader rd(fh, ubuf, b, gb.dict, gb.bits);

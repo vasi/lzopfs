@@ -47,6 +47,12 @@ public:
 	void read(Buffer& buf, size_t size);
 	size_t tryRead(void *buf, size_t size);
 	size_t tryRead(Buffer& buf, size_t size);
+	
+	void pread(off_t off, void *buf, size_t size) const;
+	void pread(off_t off, Buffer& buf, size_t size) const;
+	size_t tryPRead(off_t off, void *buf, size_t size) const;
+	size_t tryPRead(off_t off, Buffer& buf, size_t size) const;
+	
 	void write(const void *buf, size_t size);
 	void write(const Buffer& buf) { write(&buf[0], buf.size()); }
 	off_t seek(off_t offset, int whence = SEEK_CUR);

@@ -37,12 +37,10 @@ protected:
 	
 	
 	lzma_index *mIndex;
-	lzma_stream mStream;
-	Buffer mBuf;
 	
-	
-	lzma_ret code(FileHandle& fh);
+	lzma_ret code(lzma_stream& s, const FileHandle& fh, off_t off = -1) const;
 	lzma_index *readIndex(FileHandle& fh);
+	void streamInit(lzma_stream& s) const;
 	
 public:
 	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
@@ -54,8 +52,8 @@ public:
 	virtual std::string destName() const;
 	
 	virtual BlockIterator findBlock(off_t off) const;
-	virtual void decompressBlock(FileHandle& fh, const Block& b,
-		Buffer& ubuf);
+	virtual void decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const;
 	
 	virtual off_t uncompressedSize() const;
 };

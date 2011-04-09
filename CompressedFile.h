@@ -61,8 +61,8 @@ public:
 	
 	virtual BlockIterator findBlock(off_t off) const = 0;
 	
-	virtual void decompressBlock(FileHandle& fh, const Block& b,
-		Buffer& ubuf) = 0;
+	virtual void decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const = 0;
 	
 	virtual off_t uncompressedSize() const = 0;
 	

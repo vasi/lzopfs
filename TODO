@@ -2,7 +2,8 @@
 - Multi-threaded
 	- Decompression threads
 	- Multiple in-flight requests?
-	- I/O thread?
+	- Single I/O thread?
+	- Build multiple indices at once?
 - Checksum blocks on decompression?
 
 - Way out there: Hierarchy based on tpxz files?

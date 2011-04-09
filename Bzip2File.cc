@@ -31,7 +31,8 @@ void Bzip2File::checkFileType(FileHandle& fh) {
 	}
 }
 
-void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl) {
+void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl)
+		const {
 	/* Block boundaries are not byte aligned, but checking each bit is
 	 * too expensive. So we only look at bytes that may be the first full
 	 * byte of a block magic number.
@@ -101,8 +102,9 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl) {
 }
 
 // Create a buffer that looks like a one-block file
-void Bzip2File::createAlignedBlock(FileHandle& fh, Buffer& b,
-		char level, off_t coff, size_t bits, off_t end, size_t endbits) {
+void Bzip2File::createAlignedBlock(const FileHandle& fh, Buffer& b,
+		char level, off_t coff, size_t bits, off_t end, size_t endbits)
+		const {
 	// Magic + level
 	const size_t prev = (bits ? 1 : 0);
 	const size_t sbits = 8 - bits;
@@ -114,8 +116,7 @@ void Bzip2File::createAlignedBlock(FileHandle& fh, Buffer& b,
 	*ip++ = level;
 	
 	// Data
-	fh.seek(coff - prev, SEEK_SET);
-	const uint8_t *fp = ip + fh.tryRead(ip, end - coff + prev);
+	const uint8_t *fp = ip + fh.tryPRead(coff - prev, ip, end - coff + prev);
 	if (bits) {
 		for (; ip < fp; ++ip)
 			*ip = (*ip << sbits) | (*(ip + 1) >> bits);
@@ -148,7 +149,7 @@ void Bzip2File::createAlignedBlock(FileHandle& fh, Buffer& b,
 	*ip++ = *ep << ebits;
 }
 	
-void Bzip2File::decompress(const Buffer& in, Buffer& out) {
+void Bzip2File::decompress(const Buffer& in, Buffer& out) const {
 	bz_stream s;
 	s.bzalloc = NULL;
 	s.bzfree = NULL;
@@ -219,8 +220,8 @@ void Bzip2File::buildIndex(FileHandle& fh) {
 	}
 }
 
-void Bzip2File::decompressBlock(FileHandle& fh, const Block& b,
-		Buffer& ubuf) {
+void Bzip2File::decompressBlock(const FileHandle& fh, const Block& b,
+		Buffer& ubuf) const {
 	Buffer in;
 	const Bzip2Block& bb = dynamic_cast<const Bzip2Block&>(b);
 	createAlignedBlock(fh, in, bb.level, bb.coff, bb.bits,

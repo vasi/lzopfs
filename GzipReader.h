@@ -24,7 +24,6 @@ public:
 
 protected:
 	bool mInitialized;
-	FileHandle& mFH;
 	z_stream mStream;
 	Buffer mInput;
 	off_t mOutBytes;
@@ -42,6 +41,7 @@ protected:
 	int stepThrow(int flush = Z_BLOCK);
 	
 	virtual void initialize(bool force = false);
+	virtual void moreData(Buffer& buf) = 0;
 	virtual size_t chunkSize() const;
 	virtual Wrapper wrapper() const { return Raw; }
 	virtual Buffer& outBuf() = 0;
@@ -49,7 +49,7 @@ protected:
 		{ throw std::runtime_error("out of space in gzip output buffer"); }
 
 public:
-	GzipReaderBase(FileHandle& fh);
+	GzipReaderBase();
 	virtual ~GzipReaderBase() { if (mInitialized) inflateEnd(&mStream); }
 	
 	virtual void swap(GzipReaderBase& o);
@@ -59,26 +59,28 @@ public:
 	int block(); // Read to next block
 	void reset(Wrapper w);
 	
-	off_t ipos() const { return mFH.tell() - mStream.avail_in; }
+	virtual off_t ipos() const = 0;
 	size_t ibits() const { return (mStream.data_type & 7); }
 	off_t obytes() const { return mOutBytes; }
 };
 
 class DiscardingGzipReader : public GzipReaderBase {
 protected:
+	FileHandle& mFH;
 	Buffer mOutBuf;
 	
 public:
-	DiscardingGzipReader(FileHandle& fh)
-		: GzipReaderBase(fh) { }
+	DiscardingGzipReader(FileHandle& fh) : mFH(fh) { }
 	
 	virtual void swap(DiscardingGzipReader& o) {
 		GzipReaderBase::swap(o);
 		std::swap(mOutBuf, o.mOutBuf);
 	}
 	
+	virtual void moreData(Buffer& buf);
 	virtual void writeOut(size_t n) { resetOutBuf(); }
 	virtual Buffer& outBuf() { return mOutBuf; }
+	virtual off_t ipos() const { return mFH.tell() - mStream.avail_in; }
 };
 
 struct GzipHeaderReader : public DiscardingGzipReader {
@@ -97,12 +99,16 @@ struct GzipHeaderReader : public DiscardingGzipReader {
 class GzipBlockReader : public GzipReaderBase {
 protected:
 	Buffer& mOutBuf;
+	const FileHandle& mCFH;
+	off_t mPos;
 
 public:
-	GzipBlockReader(FileHandle& fh, Buffer& ubuf, const Block& b,
+	GzipBlockReader(const FileHandle& fh, Buffer& ubuf, const Block& b,
 		const Buffer& dict, size_t bits);
+	virtual void moreData(Buffer& buf);
 	Buffer& outBuf() { return mOutBuf; }
 	void read();
+	virtual off_t ipos() const { return mPos; }
 };
 
 class PositionedGzipReader : public DiscardingGzipReader {

@@ -56,6 +56,32 @@ void FileHandle::read(Buffer& buf, size_t size) {
 	read(&buf[0], size);
 }
 
+void FileHandle::pread(off_t off, void *buf, size_t size) const {
+	if (tryPRead(off, buf, size) < size)
+		throw EOFException(mPath);
+}
+
+void FileHandle::pread(off_t off, Buffer& buf, size_t size) const {
+	buf.resize(size);
+	pread(off, &buf[0], size);
+}
+
+size_t FileHandle::tryPRead(off_t off, Buffer& buf, size_t size) const {
+	buf.resize(size);
+	size_t bytes = tryPRead(off, &buf[0], size);
+	buf.resize(bytes);
+	return bytes;
+}
+
+size_t FileHandle::tryPRead(off_t off, void *buf, size_t size) const {
+	ssize_t bytes = ::pread(mFD, buf, size, off);
+	if (bytes < 0)
+		THROW_EX("pread");
+	if (bytes == 0)
+		throw EOFException(mPath);
+	return size_t(bytes);
+}
+
 size_t FileHandle::tryRead(Buffer& buf, size_t size) {
 	buf.resize(size);
 	size_t bytes = tryRead(&buf[0], size);

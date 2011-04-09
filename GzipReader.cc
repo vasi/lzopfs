@@ -25,7 +25,8 @@ void GzipReaderBase::prime(uint8_t byte, size_t bits) {
 int GzipReaderBase::step(int flush) {
 	initialize();
 	if (mStream.avail_in == 0) {
-		mStream.avail_in = mFH.tryRead(mInput, chunkSize());
+		moreData(mInput);
+		mStream.avail_in = mInput.size();
 		mStream.next_in = &mInput[0];
 	}
 	if (mStream.avail_out == 0)
@@ -58,8 +59,7 @@ size_t GzipReaderBase::chunkSize() const {
 	return CompressedFile::ChunkSize;
 }
 
-GzipReaderBase::GzipReaderBase(FileHandle& fh)
-		: mInitialized(false), mFH(fh), mOutBytes(0) {
+GzipReaderBase::GzipReaderBase() : mInitialized(false), mOutBytes(0) {
 	mStream.zfree = Z_NULL;
 	mStream.zalloc = Z_NULL;
 	mStream.opaque = Z_NULL;
@@ -98,14 +98,19 @@ void GzipReaderBase::reset(Wrapper w) {
 	throwEx("inflateReset", inflateReset2(&mStream, w));
 }
 
-GzipBlockReader::GzipBlockReader(FileHandle& fh, Buffer& ubuf,
+void DiscardingGzipReader::moreData(Buffer& buf) {
+	mFH.tryRead(buf, chunkSize());
+}
+
+GzipBlockReader::GzipBlockReader(const FileHandle& fh, Buffer& ubuf,
 		const Block& b, const Buffer& dict, size_t bits)
-		: GzipReaderBase(fh), mOutBuf(ubuf) {
+		: mOutBuf(ubuf), mCFH(fh),
+		mPos(b.coff - (bits ? 1 : 0)) {
 	setDict(dict);
-	mFH.seek(b.coff - (bits ? 1 : 0), SEEK_SET);
 	if (bits) {
 		uint8_t byte;
-		mFH.readBE(byte);
+		mCFH.pread(mPos, &byte, sizeof(byte));
+		mPos += sizeof(byte);
 		prime(byte, bits);
 	}
 }
@@ -113,6 +118,11 @@ GzipBlockReader::GzipBlockReader(FileHandle& fh, Buffer& ubuf,
 void GzipBlockReader::read() {
 	while (mStream.avail_out)
 		stepThrow(Z_NO_FLUSH);
+}
+
+void GzipBlockReader::moreData(Buffer& buf) {
+	mCFH.tryPRead(mPos, buf, chunkSize());
+	mPos += buf.size();
 }
 
 void PositionedGzipReader::skipFooter() {

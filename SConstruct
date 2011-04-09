@@ -10,7 +10,7 @@ env = Environment(
     LINKFLAGS = '-g',
     CPPFLAGS = '-Wall -g %s' % opt)
 
-conf = Configure(env, help = False, config_h = 'config.h',
+conf = Configure(env, help = True, config_h = 'config.h',
     custom_tests = { 'CheckPkg': CheckPkg, 'CheckMac': CheckMac })
 
 if not FindCXX(conf):
