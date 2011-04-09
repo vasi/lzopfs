@@ -20,21 +20,20 @@ void BlockCache::dump() {
 	}
 }
 
-BlockCache::CachedBuffer BlockCache::getBlock(const OpenCompressedFile& file,
+BlockCache::BufPtr BlockCache::getBlock(const OpenCompressedFile& file,
 		const Block& block) {
 	Key k(file.id(), block.coff);
-	Buffer *buf = mMap.find(k);
-	bool owned = false;
+	BufPtr *buf = mMap.find(k);
+	if (buf)
+		return *buf;
 	
-	if (!buf) {
-		// Add a new buffer
-		try {
-			buf = &mMap.add(k, Buffer(), block.usize).value;
-		} catch (Map::OverWeight& e) {
-			buf = new Buffer();
-			owned = true; 
-		}
-		file.decompressBlock(block, *buf);
+	// Add a new buffer
+	BufPtr nbuf(new Buffer());
+	file.decompressBlock(block, *nbuf);
+	try {
+		mMap.add(k, nbuf, block.usize);
+	} catch (Map::OverWeight& e) {
+		// that's ok!
 	}
-	return CachedBuffer(buf, owned);
+	return nbuf;
 }

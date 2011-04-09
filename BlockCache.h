@@ -5,7 +5,12 @@
 #include "OpenCompressedFile.h"
 #include "LRUMap.h"
 
+#include <tr1/memory>
+
 class BlockCache {
+public:
+	typedef std::tr1::shared_ptr<Buffer> BufPtr;
+	
 protected:
 	struct Key {
 		OpenCompressedFile::FileID id;
@@ -21,42 +26,14 @@ protected:
 		}
 	};
 	
-	typedef LRUMap<Key, Buffer, KeyHasher> Map;
+	typedef LRUMap<Key, BufPtr, KeyHasher> Map;
 	Map mMap;
 
-public:
-	// Buffer container, which transfers ownership on copy
-	struct CachedBufferRef {
-		Buffer *buf;
-		bool owned;
-		explicit CachedBufferRef(Buffer *b, bool o) : buf(b), owned(o) { }
-		
-	};
-	class CachedBuffer {
-		Buffer *buf;
-		bool owned;
-		
-	public:
-		CachedBuffer(Buffer *b, bool o) : buf(b), owned(o) { }
-		~CachedBuffer() { if (owned) delete buf; }
-		
-		// Implement move semantics
-		CachedBuffer(CachedBufferRef r) : buf(r.buf), owned(r.owned) { }
-		operator CachedBufferRef() {
-			bool old = owned;
-			owned = false;
-			return CachedBufferRef(buf, old);
-		}
-		
-		Buffer* operator->() const { return buf; }
-		Buffer& operator*() const { return *buf; }
-	};
-	
-	
+public:	
 	BlockCache(size_t maxSize = 0) : mMap(maxSize) { }
 	void maxSize(size_t s) { mMap.maxWeight(s); }
 	
-	CachedBuffer getBlock(const OpenCompressedFile& file, const Block& block);
+	BufPtr getBlock(const OpenCompressedFile& file, const Block& block);
 	
 	void dump();
 };
