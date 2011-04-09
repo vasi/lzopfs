@@ -4,15 +4,15 @@
 
 #include <cstring>
 
-OpenCompressedFile::OpenCompressedFile(CompressedFile *file, int openFlags)
-		: mFile(file), mFH(file->path(), openFlags) { }
+OpenCompressedFile::OpenCompressedFile(const CompressedFile *file,
+		int openFlags) : mFile(file), mFH(file->path(), openFlags) { }
 
-void OpenCompressedFile::decompressBlock(const Block& b, Buffer& ubuf) {
+void OpenCompressedFile::decompressBlock(const Block& b, Buffer& ubuf) const {
 	mFile->decompressBlock(mFH, b, ubuf);
 }
 
 ssize_t OpenCompressedFile::read(BlockCache& cache,
-		char *buf, size_t size, off_t offset) {
+		char *buf, size_t size, off_t offset) const {
 	char *p = buf;
 	CompressedFile::BlockIterator biter = mFile->findBlock(offset);
 	for (; size > 0 && !biter.end(); ++biter) {

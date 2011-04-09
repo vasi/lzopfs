@@ -56,7 +56,7 @@ public:
 	BlockCache(size_t maxSize = 0) : mMap(maxSize) { }
 	void maxSize(size_t s) { mMap.maxWeight(s); }
 	
-	CachedBuffer getBlock(OpenCompressedFile& file, const Block& block);
+	CachedBuffer getBlock(const OpenCompressedFile& file, const Block& block);
 	
 	void dump();
 };

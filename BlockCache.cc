@@ -20,7 +20,7 @@ void BlockCache::dump() {
 	}
 }
 
-BlockCache::CachedBuffer BlockCache::getBlock(OpenCompressedFile& file,
+BlockCache::CachedBuffer BlockCache::getBlock(const OpenCompressedFile& file,
 		const Block& block) {
 	Key k(file.id(), block.coff);
 	Buffer *buf = mMap.find(k);
