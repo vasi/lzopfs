@@ -11,21 +11,34 @@ void OpenCompressedFile::decompressBlock(const Block& b, Buffer& ubuf) const {
 	mFile->decompressBlock(mFH, b, ubuf);
 }
 
+namespace {
+	struct Callback : public BlockCache::Callback {
+		off_t& max;
+		char *buf;
+		size_t size;
+		off_t offset;
+		
+		Callback(off_t& m, char *b, size_t s, off_t o)
+			: max(m), buf(b), size(s), offset(o) { }
+		
+		virtual void operator()(const Block& block,
+				BlockCache::BufPtr& ubuf) {
+			off_t omin = std::max(offset, off_t(block.uoff)),
+				omax = std::min(offset + size, block.uoff + block.usize);
+			size_t bstart = omin - block.uoff,
+				bsize = omax - omin;
+			memcpy(buf + omin - offset, &(*ubuf)[bstart], bsize);
+			max = omax;
+		}
+	};
+}
+
 ssize_t OpenCompressedFile::read(BlockCache& cache,
 		char *buf, size_t size, off_t offset) const {
-	char *p = buf;
+	off_t max = offset;
 	CompressedFile::BlockIterator biter = mFile->findBlock(offset);
-	for (; size > 0 && !biter.end(); ++biter) {
-		BlockCache::BufPtr ubuf = cache.getBlock(*this, *biter);
-		size_t bstart = offset - biter->uoff;
-		size_t bsize = std::min(size, ubuf->size() - bstart);
-		memcpy(p, &(*ubuf)[bstart], bsize);
-
-		p += bsize;
-		offset += bsize;
-		size -= bsize;
-	}
+	Callback cb(max, buf, size, offset);
+	cache.getBlocks(*this, biter, offset + size, cb);
 	
-	// cache.dump();
-	return p - buf;
+	return max - offset;
 }

@@ -4,12 +4,11 @@
 #include "FileList.h"
 #include "CompressedFile.h"
 #include "OpenCompressedFile.h"
+#include "ThreadPool.h"
 
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
-
-#include <pthread.h>
 
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
@@ -21,9 +20,9 @@ typedef uint64_t FuseFH;
 const size_t CacheSize = 1024 * 1024 * 32;
 
 const char *gNextSource = 0;
-BlockCache gBlockCache;
+ThreadPool gThreadPool;
+BlockCache gBlockCache(gThreadPool);
 FileList gFiles(CacheSize);
-pthread_mutex_t gReadMutex = PTHREAD_MUTEX_INITIALIZER;
 
 void except(std::runtime_error& e) {
 	fprintf(stderr, "%s: %s\n", typeid(e).name(), e.what());
@@ -90,7 +89,6 @@ extern "C" int lf_release(const char *path, struct fuse_file_info *fi) {
 
 extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 		struct fuse_file_info *fi) {
-	pthread_mutex_lock(&gReadMutex);
 	int ret = -1;
 	try {
 		ret = reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
@@ -98,7 +96,6 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 	} catch (std::runtime_error& e) {
 		except(e);
 	}
-	pthread_mutex_unlock(&gReadMutex);
 	return ret;
 }
 
@@ -132,7 +129,8 @@ int main(int argc, char *argv[]) {
 		ops.open = lf_open;
 		ops.release = lf_release;
 		ops.read = lf_read;
-	
+		
+		// fixme: help with options?
 		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 		fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
 		if (gNextSource)

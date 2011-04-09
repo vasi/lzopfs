@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include <signal.h>
 #include <unistd.h>
 
 ThreadPool::ThreadPool(size_t threads) : mCancelling(false) {
@@ -10,15 +11,23 @@ ThreadPool::ThreadPool(size_t threads) : mCancelling(false) {
 	if (threads == 0)
 		threads = systemCPUs();
 	mThreads.resize(threads);
-	for (ThreadList::iterator i = mThreads.begin(); i < mThreads.end(); ++i)
-		pthread_create(&*i, 0, &threadFunc, this);
+	for (size_t i = 0; i < threads; ++i) {
+		mThreads.push_back(ThreadInfo(this, i));
+		ThreadInfo& info = mThreads.back();
+		pthread_create(&info.pthread, 0, &threadFunc, &info);
+	}
 }
 
 void *ThreadPool::threadFunc(void *val) {
-	ThreadPool *pool = reinterpret_cast<ThreadPool*>(val);
+	// Don't run signal handlers on worker threads
+	sigset_t allsig;
+	sigfillset(&allsig);
+	pthread_sigmask(SIG_BLOCK, &allsig, NULL);
+
+	ThreadInfo *info = reinterpret_cast<ThreadInfo*>(val);
 	
 	while (true) {
-		Job *job = pool->nextJob();
+		Job *job = info->pool->nextJob();
 		try {
 			if (!job)
 				pthread_exit(0); // we're being cancelled
@@ -45,10 +54,11 @@ ThreadPool::~ThreadPool() {
 		
 		for (size_t i = 0; i < mThreads.size(); ++i)
 			mJobs.push(0); // request cancellation
+		mCond.broadcast();
 	}
 	
 	for (ThreadList::iterator i = mThreads.begin(); i < mThreads.end(); ++i)
-		pthread_join(*i, 0);
+		pthread_join(i->pthread, 0);
 }
 
 size_t ThreadPool::systemCPUs() const {
@@ -64,7 +74,7 @@ ThreadPool::Job* ThreadPool::nextJob() {
 	return job;
 }
 
-void ThreadPool::doJob(Job *job) {
+void ThreadPool::enqueue(Job *job) {
 	Lock lock(mCond);
 	if (mCancelling)
 		throw std::runtime_error("Can't add jobs while cancelling");
