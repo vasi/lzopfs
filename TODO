@@ -1,11 +1,15 @@
 - Write README
-- Multi-threaded
-	- Decompression threads
-	- Multiple in-flight requests?
-	- Single I/O thread?
-	- Build multiple indices at once?
-	- FIXME segfault on interrupted read!!!
+- Signals
+	- Quit ASAP on SIGINT
+	- Handle on main thread only
 - Checksum blocks on decompression?
-- Don't stay mounted on SIGINT?
+- Allow use of only some compression methods (autoconf)
+
+- Optimizations
+	- Single I/O thread
+	- Don't cache uncompressed blocks
+	- Don't decompress a block if it's already inflight
+	- Speculative readahead
+	- Don't lzma_end if unnecessary, for memory use?
 
 - Way out there: Hierarchy based on tpxz files?
