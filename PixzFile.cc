@@ -12,7 +12,7 @@ const uint64_t PixzFile::MemLimit = UINT64_MAX;
 PixzFile::PixzFile(const std::string& path, uint64_t maxBlock)
 		: CompressedFile(path), mIndex(0) {
 	try {
-		FileHandle fh(path, O_RDONLY);
+		FileHandle fh(this->path(), O_RDONLY);
 		Buffer header;
 		fh.read(header, LZMA_STREAM_HEADER_SIZE);
 		lzma_stream_flags flags;

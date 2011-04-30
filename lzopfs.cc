@@ -5,6 +5,7 @@
 #include "CompressedFile.h"
 #include "OpenCompressedFile.h"
 #include "ThreadPool.h"
+#include "PathUtils.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -19,14 +20,29 @@ typedef uint64_t FuseFH;
 
 const size_t CacheSize = 1024 * 1024 * 32;
 
-const char *gNextSource = 0;
-ThreadPool gThreadPool;
-BlockCache gBlockCache(gThreadPool);
-FileList gFiles(CacheSize);
+struct FSData {
+	FileList *files;
+	ThreadPool pool;
+	BlockCache cache;
+	
+	FSData(FileList* f) : files(f), pool(), cache(pool) {
+		cache.maxSize(CacheSize);
+	}
+	~FSData() { delete files; }
+};
+FSData *fsdata() {
+	return reinterpret_cast<FSData*>(fuse_get_context()->private_data);
+}
+
 
 void except(std::runtime_error& e) {
 	fprintf(stderr, "%s: %s\n", typeid(e).name(), e.what());
 	exit(1);
+}
+
+extern "C" void *lf_init(struct fuse_conn_info *conn) {
+	void *priv = fuse_get_context()->private_data;
+	return new FSData(reinterpret_cast<FileList*>(priv));
 }
 
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
@@ -36,7 +52,7 @@ extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
 		stbuf->st_nlink = 3;
-	} else if ((file = gFiles.find(path))) {
+	} else if ((file = fsdata()->files->find(path))) {
 		stbuf->st_mode = S_IFREG | 0444;
 		stbuf->st_nlink = 1;
 		stbuf->st_size = file->uncompressedSize();
@@ -62,13 +78,13 @@ extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 	
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
-	gFiles.forNames(DirFiller(buf, filler));
+	fsdata()->files->forNames(DirFiller(buf, filler));
 	return 0;
 }
 
 extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
 	CompressedFile *file;
-	if (!(file = gFiles.find(path)))
+	if (!(file = fsdata()->files->find(path)))
 		return -ENOENT;
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
 		return -EACCES;
@@ -92,25 +108,34 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 	int ret = -1;
 	try {
 		ret = reinterpret_cast<OpenCompressedFile*>(fi->fh)->read(
-			gBlockCache, buf, size, offset);
+			fsdata()->cache, buf, size, offset);
 	} catch (std::runtime_error& e) {
 		except(e);
 	}
 	return ret;
 }
 
+
+struct OptData {
+	const char *nextSource;
+	FileList& files;
+	
+	OptData(FileList& f) : nextSource(0), files(f) { }
+};
+
 extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 		struct fuse_args *outargs) {
+	OptData *optd = reinterpret_cast<OptData*>(data);
 	if (key == FUSE_OPT_KEY_NONOPT) {
-		if (gNextSource) {
+		if (optd->nextSource) {
 			try {
-				fprintf(stderr, "%s\n", gNextSource);
-				gFiles.add(gNextSource);
+				fprintf(stderr, "%s\n", optd->nextSource);
+				optd->files.add(PathUtils::realpath(optd->nextSource));
 			} catch (std::runtime_error& e) {
 				except(e);
 			}
 		}
-		gNextSource = arg;
+		optd->nextSource = arg;
 		return 0;
 	}
 	return 1;
@@ -121,7 +146,7 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 int main(int argc, char *argv[]) {
 	try {
 		umask(0);
-	
+		
 		struct fuse_operations ops;
 		memset(&ops, 0, sizeof(ops));
 		ops.getattr = lf_getattr;
@@ -129,17 +154,18 @@ int main(int argc, char *argv[]) {
 		ops.open = lf_open;
 		ops.release = lf_release;
 		ops.read = lf_read;
+		ops.init = lf_init;
 		
-		// fixme: help with options?
+		// FIXME: help with options?
+		FileList *files = new FileList(CacheSize);
+		OptData optd(*files);
 		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-		fuse_opt_parse(&args, NULL, NULL, lf_opt_proc);
-		if (gNextSource)
-			fuse_opt_add_arg(&args, gNextSource);
-	
-		gBlockCache.maxSize(CacheSize);
-		
+		fuse_opt_parse(&args, &optd, NULL, lf_opt_proc);
+		if (optd.nextSource)
+			fuse_opt_add_arg(&args, optd.nextSource);
+			
 		fprintf(stderr, "Ready\n");
-		return fuse_main(args.argc, args.argv, &ops, NULL);
+		return fuse_main(args.argc, args.argv, &ops, files);
 	} catch (std::runtime_error& e) {
 		except(e);
 	}

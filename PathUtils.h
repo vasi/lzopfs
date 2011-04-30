@@ -11,6 +11,8 @@ namespace PathUtils {
 	bool removeExtension(std::string& name, const std::string& ext);
 	bool replaceExtension(std::string& name, const std::string& ext,
 		const std::string& replace);
+	
+	std::string realpath(const std::string& path);
 }
 
 #endif // PATHUTILS_H

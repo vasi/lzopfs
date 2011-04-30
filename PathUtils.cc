@@ -1,4 +1,5 @@
 #include "PathUtils.h"
+#include <stdlib.h>
 using std::string;
 
 namespace PathUtils {
@@ -53,6 +54,19 @@ bool removeExtension(std::string& name, const std::string& ext) {
 		return false;
 	name.resize(pos - 1);
 	return true;
+}
+
+string realpath(const string& path) {
+	char *abs = 0;
+	try {
+		abs = ::realpath(path.c_str(), NULL);
+		string ret(abs);
+		free(abs);
+		return ret;
+	} catch (...) {
+		if (abs) free(abs);
+		throw;
+	}
 }
 
 }

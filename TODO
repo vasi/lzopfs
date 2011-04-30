@@ -11,5 +11,6 @@
 	- Don't decompress a block if it's already inflight
 	- Speculative readahead
 	- Don't lzma_end if unnecessary, for memory use?
+	- Lock-free queue for thread-pool?
 
 - Way out there: Hierarchy based on tpxz files?
