@@ -7,6 +7,8 @@
 #include <vector>
 #include <tr1/unordered_map>
 
+#include <stdint.h>
+
 class FileList {
 private:
 	// Disable copying

@@ -1,6 +1,9 @@
 #ifndef LZOPFS_H
 #define LZOPFS_H
 
+#define __STDC_LIMIT_MACROS
+#define __STDC_FORMAT_MACROS
+
 #include <vector>
 #include <stdint.h>
 

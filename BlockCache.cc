@@ -2,7 +2,6 @@
 
 #include <cstdio>
 
-#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 void BlockCache::dump() {
@@ -54,7 +53,7 @@ void BlockCache::getBlocks(const OpenCompressedFile& file, BlockIterator& it,
 	std::vector<NeededBlock> need;	
 	{
 		Lock lock(mMutex);
-		for (; !it.end() && it->uoff < max; ++it) {
+		for (; !it.end() && (off_t)it->uoff < max; ++it) {
 			Key k(file.id(), it->coff);
 			BufPtr *buf = mMap.find(k);
 			if (buf)

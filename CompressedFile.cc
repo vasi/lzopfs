@@ -1,8 +1,9 @@
 #include "CompressedFile.h"
 
+#include <cstdio>
+
 #include "PathUtils.h"
 
-#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 const size_t CompressedFile::ChunkSize = 4096;

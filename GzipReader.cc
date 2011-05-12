@@ -1,5 +1,7 @@
 #include "GzipReader.h"
 
+#include <cstdio>
+
 #include "CompressedFile.h"
 #include "GzipFile.h"
 

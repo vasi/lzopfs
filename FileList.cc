@@ -1,5 +1,7 @@
 #include "FileList.h"
 
+#include <cstdio>
+
 #include "LzopFile.h"
 #include "PixzFile.h"
 #include "GzipFile.h"

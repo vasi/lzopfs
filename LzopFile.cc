@@ -7,7 +7,6 @@
 #include <cstring>
 #include <stdexcept>
 
-#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 #include <lzo/lzo1x.h>

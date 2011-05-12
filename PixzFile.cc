@@ -3,8 +3,8 @@
 #include "PathUtils.h"
 
 #include <cassert>
+#include <cstring>
 
-#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
 const uint64_t PixzFile::MemLimit = UINT64_MAX;
