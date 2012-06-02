@@ -43,6 +43,7 @@ class ThreadPool {
 public:
 	struct Job {
 		virtual void operator()() = 0;
+		virtual ~Job() { }
 	};
 
 protected:

@@ -18,6 +18,7 @@ public:
 		virtual bool end() const = 0;
 		virtual const Block& deref() const = 0;
 		virtual BlockIteratorInner *dup() const = 0;
+		virtual ~BlockIteratorInner() { }
 	};
 	
 	class BlockIterator {
