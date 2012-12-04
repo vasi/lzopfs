@@ -85,7 +85,7 @@ void Bzip2File::findBlockBoundaryCandidates(FileHandle& fh, BoundList &bl)
 			
 			const off_t pos = rpos - (buf + bsz - i);
 			if (v == BlockMagic || v == EOSMagic) {
-				DEBUG("%s %c %9lld %zu",
+				DEBUG("%s %c %9lld %hhu",
 					(v == BlockMagic ? "block" : "eos  "), level, pos, b);
 				bl.push_back(BlockBoundary(v, level, pos, b));
 				if (v == EOSMagic)
