@@ -8,6 +8,7 @@
 #include "PathUtils.h"
 #include "GzipFile.h"
 
+#include <cstddef>
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
