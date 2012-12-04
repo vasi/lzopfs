@@ -52,7 +52,7 @@ public:
 	GzipReaderBase();
 	virtual ~GzipReaderBase() { if (mInitialized) inflateEnd(&mStream); }
 	
-	virtual void swap(GzipReaderBase& o);
+	void swap(GzipReaderBase& o);
 	
 	std::string zerr(const std::string& s, int err = Z_OK) const;
 	
@@ -72,7 +72,7 @@ protected:
 public:
 	DiscardingGzipReader(FileHandle& fh) : mFH(fh) { }
 	
-	virtual void swap(DiscardingGzipReader& o) {
+	void swap(DiscardingGzipReader& o) {
 		GzipReaderBase::swap(o);
 		std::swap(mOutBuf, o.mOutBuf);
 	}
@@ -125,7 +125,7 @@ public:
 		: DiscardingGzipReader(fh), mInitOutPos(opos),
 		mWrap(opos ? Raw : Gzip) { }
 
-	virtual void swap(PositionedGzipReader& o) {
+	void swap(PositionedGzipReader& o) {
 		DiscardingGzipReader::swap(o);
 		std::swap(mInitOutPos, o.mInitOutPos);
 		std::swap(mWrap, o.mWrap);

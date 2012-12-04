@@ -106,7 +106,7 @@ protected:
 	virtual bool readBlock(FileHandle& fh, Block* b);	// True unless EOF
 	virtual void writeBlock(FileHandle& fh, const Block *b) const;
 	
-	virtual void addBlock(Block* b) { mBlocks.push_back(b); }
+	void addBlock(Block* b) { mBlocks.push_back(b); }
 	virtual BlockIterator findBlock(off_t off) const;
 	virtual off_t uncompressedSize() const;
 };
