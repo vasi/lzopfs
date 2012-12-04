@@ -28,7 +28,7 @@ protected:
 
 public:
 	static const size_t WindowSize;
-	static const uint64_t MinDictBlockSize;
+	static uint64_t gMinDictBlockFactor;
 	
 	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
 		{ return new GzipFile(path, maxBlock); }

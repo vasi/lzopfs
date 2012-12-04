@@ -6,6 +6,7 @@
 #include "OpenCompressedFile.h"
 #include "ThreadPool.h"
 #include "PathUtils.h"
+#include "GzipFile.h"
 
 #include <cerrno>
 #include <cstdio>
@@ -116,11 +117,17 @@ extern "C" int lf_read(const char *path, char *buf, size_t size, off_t offset,
 }
 
 
+typedef std::vector<std::string> paths_t;
 struct OptData {
 	const char *nextSource;
-	FileList& files;
+	paths_t* files;
 	
-	OptData(FileList& f) : nextSource(0), files(f) { }
+	unsigned gzipBlockFactor;
+};
+
+static struct fuse_opt lf_opts[] = {
+	{ "--gzip-block-factor=%lu", offsetof(OptData, gzipBlockFactor), 0 },
+	FUSE_OPT_END,
 };
 
 extern "C" int lf_opt_proc(void *data, const char *arg, int key,
@@ -130,7 +137,7 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 		if (optd->nextSource) {
 			try {
 				fprintf(stderr, "%s\n", optd->nextSource);
-				optd->files.add(PathUtils::realpath(optd->nextSource));
+				optd->files->push_back(PathUtils::realpath(optd->nextSource));
 			} catch (std::runtime_error& e) {
 				except(e);
 			}
@@ -157,15 +164,24 @@ int main(int argc, char *argv[]) {
 		ops.init = lf_init;
 		
 		// FIXME: help with options?
-		FileList *files = new FileList(CacheSize);
-		OptData optd(*files);
+		paths_t files;
+		OptData optd = { 0, &files, 0 };
 		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-		fuse_opt_parse(&args, &optd, NULL, lf_opt_proc);
+		fuse_opt_parse(&args, &optd, lf_opts, lf_opt_proc);
 		if (optd.nextSource)
 			fuse_opt_add_arg(&args, optd.nextSource);
-			
+		
+		if (optd.gzipBlockFactor)
+			GzipFile::gMinDictBlockFactor = optd.gzipBlockFactor;
+		
+		FileList *flist = new FileList(CacheSize);
+		for (paths_t::const_iterator iter = files.begin(); iter != files.end();
+				++iter) {
+			flist->add(*iter);
+		}
+		
 		fprintf(stderr, "Ready\n");
-		return fuse_main(args.argc, args.argv, &ops, files);
+		return fuse_main(args.argc, args.argv, &ops, flist);
 	} catch (std::runtime_error& e) {
 		except(e);
 	}

@@ -3,7 +3,7 @@
 #include "PathUtils.h"
 
 const size_t GzipFile::WindowSize = 1 << MAX_WBITS; 
-const uint64_t GzipFile::MinDictBlockSize = 32 * WindowSize; 
+uint64_t GzipFile::gMinDictBlockFactor = 32;
 
 void GzipFile::checkFileType(FileHandle& fh) {
 	try {
@@ -36,6 +36,7 @@ Buffer& GzipFile::addBlock(off_t uoff, off_t coff, size_t bits) {
 void GzipFile::buildIndex(FileHandle& fh) {
 	fh.seek(0, SEEK_SET);
 	SavingGzipReader rd(fh);
+	off_t minBlock = gMinDictBlockFactor * WindowSize;
 	
 	/* Go through every block in the file.
 	 * For each block, try to see first if it can be decoded independently,
@@ -101,7 +102,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 				DEBUG("...failed, rewinding!");
 				indep = false;
 				rd.restore();
-				if (rd.opos() - lastIdx > off_t(MinDictBlockSize)) {
+				if (rd.opos() - lastIdx > off_t(minBlock)) {
 					// Add a dict block
 					DEBUG("Dict block");
 					Buffer& dict = addBlock(rd.opos(), rd.ipos(), rd.ibits());

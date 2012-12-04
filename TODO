@@ -13,4 +13,9 @@
 	- Don't lzma_end if unnecessary, for memory use?
 	- Lock-free queue for thread-pool?
 
+- Memory usage
+	- Don't read whole index into memory. Use B-trees or something?
+	- If we do read the whole index, don't keep the dict blocks in memory
+	- Write the index as we go
+
 - Way out there: Hierarchy based on tpxz files?
