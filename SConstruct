@@ -34,6 +34,10 @@ if not FindLib(conf, ['bz2']):
     print 'bzip2 not found.'
     Exit(1)
 
+if not FindLib(conf, ['pthread']):
+    print 'pthreads not found.'
+    Exit(1)
+
 if not conf.CheckHeader('libkern/OSByteOrder.h'):
     if not conf.CheckHeader('endian.h'):
         print 'No endianness header found.'

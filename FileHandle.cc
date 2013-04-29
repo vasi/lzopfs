@@ -4,6 +4,7 @@
 #include <cerrno>
 
 #include <fcntl.h>
+#include <unistd.h>
 
 #define THROW_EX(_func) (throwEx(_func, errno))
 
