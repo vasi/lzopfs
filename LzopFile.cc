@@ -11,7 +11,7 @@
 
 #include <lzo/lzo1x.h>
 
-const char LzopFile::Magic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
+const unsigned char LzopFile::Magic[] = { 0x89, 'L', 'Z', 'O', '\0', '\r', '\n',
 	0x1a, '\n' };
 
 // Version of lzop we emulate

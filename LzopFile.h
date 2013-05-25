@@ -21,7 +21,7 @@ protected:
 	
 	enum ChecksumType { Adler, CRC };
 	
-	static const char Magic[];
+	static const unsigned char Magic[];
 	static const uint16_t LzopDecodeVersion;
 	
 	uint32_t mFlags;	
