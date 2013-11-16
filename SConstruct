@@ -17,6 +17,10 @@ if not FindCXX(conf):
     print 'No compiler found.'
     Exit(1)
 
+if not FindTR1(conf):
+    print 'No unordered_map implementation found.'
+    Exit(1)
+
 if not FindFUSE(conf):
     print 'FUSE not found.'
     Exit(1)

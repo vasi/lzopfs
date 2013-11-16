@@ -58,6 +58,17 @@ def FindLib(conf, lib, managers = ['port', 'fink']):
         conf.env.Replace(LIBPATH = orig)
     return False
 
+def FindTR1(conf):
+    if conf.CheckCXXHeader('unordered_map'):
+        return True
+    if conf.CheckCXXHeader('tr1/unordered_map'):
+        conf.env.Append(CPPDEFINES=['HAS_TR1'])
+        return True
+    if conf.CheckCXXHeader('boost/unordered_map.hpp'):
+        conf.env.Append(CPPDEFINES=['HAS_BOOST_TR1'])
+        return True
+    return False
+
 # Find a preferred compiler
 def FindCXX(conf, compilers = ['clang++', 'g++']):
     compilers.append(conf.env['CXX'])
@@ -77,8 +88,13 @@ def FindFUSE(conf):
     if not IsMac(conf):
         return False
     
-    if not conf.CheckLib('fuse_ino64'):
+    mac_flags = ' -D_FILE_OFFSET_BITS=64 -D__DARWIN_64_BIT_INO_T=1 '
+    if conf.CheckLib('fuse_ino64'):
+        mac_flags += ' -D__FreeBSD__=10 '
+    elif conf.CheckLib('osxfuse'):
+        conf.env.Append(CPPPATH = '/usr/local/include/osxfuse')
+    else:
         return False
-    conf.env.Append(CPPFLAGS = ' -D__FreeBSD__=10 -D_FILE_OFFSET_BITS=64 '
-        + '-D__DARWIN_64_BIT_INO_T=1')
+
+    conf.env.Append(CPPFLAGS = mac_flags)
     return True

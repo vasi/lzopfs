@@ -12,6 +12,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstring>
+#include <cstdlib>
 
 #define FUSE_USE_VERSION 26
 #include <fuse.h>
@@ -128,7 +129,7 @@ struct OptData {
 
 static struct fuse_opt lf_opts[] = {
 	{ "--gzip-block-factor=%lu", offsetof(OptData, gzipBlockFactor), 0 },
-	FUSE_OPT_END,
+	{NULL, -1U, 0},
 };
 
 extern "C" int lf_opt_proc(void *data, const char *arg, int key,

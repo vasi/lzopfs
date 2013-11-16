@@ -1,6 +1,7 @@
 #include "GzipReader.h"
 
 #include <cstdio>
+#include <cstdlib>
 
 #include "CompressedFile.h"
 #include "GzipFile.h"

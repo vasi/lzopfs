@@ -2,10 +2,10 @@
 #define FILELIST_H
 
 #include "CompressedFile.h"
+#include "TR1.h"
 
 #include <string>
 #include <vector>
-#include <tr1/unordered_map>
 
 #include <stdint.h>
 
@@ -16,7 +16,7 @@ private:
 	FileList& operator=(const FileList& o);
 	
 protected:
-	typedef std::tr1::unordered_map<std::string,CompressedFile*> Map;
+	typedef unordered_map<std::string,CompressedFile*> Map;
 	Map mMap;
 	uint64_t mMaxBlockSize;
 	

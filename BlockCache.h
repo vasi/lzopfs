@@ -2,15 +2,14 @@
 #define BLOCKCACHE_H
 
 #include "lzopfs.h"
+#include "TR1.h"
 #include "OpenCompressedFile.h"
 #include "LRUMap.h"
 #include "ThreadPool.h"
 
-#include <tr1/memory>
-
 class BlockCache {
 public:
-	typedef std::tr1::shared_ptr<Buffer> BufPtr;
+	typedef shared_ptr<Buffer> BufPtr;
 	
 	struct Callback {
 		virtual void operator()(const Block& block, BufPtr& buf) = 0;
@@ -29,7 +28,7 @@ protected:
 	};
 	struct KeyHasher : public std::unary_function<Key, std::size_t> {
 		size_t operator()(const Key& k) const {
-			return std::tr1::hash<std::string>()(k.id) * 37 + k.offset;
+			return hash<std::string>()(k.id) * 37 + k.offset;
 		}
 	};
 	
