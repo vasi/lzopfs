@@ -28,14 +28,15 @@ def CheckMac(ctx):
 
 # Find a lib, checking for any Mac package managers in strange prefixes
 pkgmans = {}
-def FindLib(conf, lib, managers = ['port', 'fink']):
+def FindLib(conf, lib, hdr, managers = ['port', 'fink']):
     global pkgmans
-    if conf.CheckLib(*lib):
+    if conf.CheckLib(lib) and conf.CheckHeader(hdr):
         return True
     if not IsMac(conf):
         return False
 
     conf.env.Append(LIBPATH = []) # ensure it exists
+    conf.env.Append(CPPPATH = []) # ensure it exists
     for pkgman in managers:
         if pkgman in pkgmans:
             continue # already have it
@@ -48,14 +49,16 @@ def FindLib(conf, lib, managers = ['port', 'fink']):
         if sep != bin or post != '':
             continue
 
-        orig = conf.env['LIBPATH']
+        orig_libpath = conf.env['LIBPATH']
+        orig_cpppath = conf.env['CPPPATH']
         conf.env.Append(LIBPATH = [pre + "/lib"])
+        conf.env.Append(CPPPATH = [pre + "/include"])
         print "Try package manager '%s'..." % pkgman
-        if conf.CheckLib(*lib):
-            conf.env.Append(CPPPATH = [pre + "/include"])
+        if conf.CheckLib(lib) and conf.CheckHeader(hdr):
             pkgmans[pkgman] = True
             return True
-        conf.env.Replace(LIBPATH = orig)
+        conf.env.Replace(LIBPATH = orig_libpath)
+        conf.env.Replace(CPPPATH = orig_cpppath)
     return False
 
 def FindTR1(conf):
