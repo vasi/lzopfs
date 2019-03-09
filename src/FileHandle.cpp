@@ -125,16 +125,12 @@ off_t FileHandle::size() const {
 	return size;
 }
 
-#include "config.h"
-#ifdef HAVE_LIBKERN_OSBYTEORDER_H
-	#include <libkern/OSByteOrder.h>
-#elif defined(HAVE_ENDIAN_H)
-	#include <endian.h>
-	#if __BYTE_ORDER == __LITTLE_ENDIAN
-		#define __LITTLE_ENDIAN__
-	#endif
+#ifdef USE_BIG_ENDIAN
+    #if USE_BIG_ENDIAN == 0
+        #define __LITTLE_ENDIAN__
+    #endif
 #else
-	#error "No endianness header."
+	#error "No endianness specified!"
 #endif
 
 void FileHandle::convertBEBuf(char *buf, size_t size) {

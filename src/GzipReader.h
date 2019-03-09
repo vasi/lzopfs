@@ -1,11 +1,13 @@
 #ifndef GZIPREADER_H
 #define GZIPREADER_H
 
+#include <memory>
+
 #include "lzopfs.h"
 #include "FileHandle.h"
 
 #include <zlib.h>
-#include "TR1.h"
+
 
 class GzipReaderBase {
 private:
@@ -25,7 +27,7 @@ public:
 
 protected:
 	bool mInitialized;
-	unique_ptr<z_stream> mStream;
+	std::unique_ptr<z_stream> mStream;
 	Buffer mInput;
 	off_t mOutBytes;
 

@@ -1,14 +1,14 @@
 #ifndef LRUMAP_H
 #define LRUMAP_H
 
-#include "TR1.h"
-
+#include <functional>
 #include <list>
+#include <unordered_map>
 
 template <
 	typename Key,
 	typename Value,
-	typename Hash = hash<Key> >
+	typename Hash = std::hash<Key> >
 class LRUMap {
 public:
 	typedef size_t Weight;
@@ -28,7 +28,7 @@ public:
 private:
 	typedef std::list<Entry> LRUList; // most-recent at front
 	typedef typename LRUList::iterator LRUIterator;
-	typedef unordered_map<Key, LRUIterator, Hash> IterMap;
+	typedef std::unordered_map<Key, LRUIterator, Hash> IterMap;
 
 public:
 	typedef LRUIterator Iterator;
