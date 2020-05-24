@@ -5,6 +5,7 @@
 #include "FileHandle.h"
 
 #include <zlib.h>
+#include "TR1.h"
 
 class GzipReaderBase {
 private:
@@ -24,14 +25,14 @@ public:
 
 protected:
 	bool mInitialized;
-	z_stream mStream;
+	unique_ptr<z_stream> mStream;
 	Buffer mInput;
 	off_t mOutBytes;
 	
 	void throwEx(const std::string& s, int err);
 	void resetOutBuf() {
-		mStream.next_out = &outBuf()[0];
-		mStream.avail_out = outBuf().size();
+		mStream->next_out = &outBuf()[0];
+		mStream->avail_out = outBuf().size();
 	}
 	
 	void setDict(const Buffer& dict);
@@ -50,7 +51,7 @@ protected:
 
 public:
 	GzipReaderBase();
-	virtual ~GzipReaderBase() { if (mInitialized) inflateEnd(&mStream); }
+	virtual ~GzipReaderBase() { if (mInitialized) inflateEnd(mStream.get()); }
 	
 	void swap(GzipReaderBase& o);
 	
@@ -60,7 +61,7 @@ public:
 	void reset(Wrapper w);
 	
 	virtual off_t ipos() const = 0;
-	size_t ibits() const { return (mStream.data_type & 7); }
+	size_t ibits() const { return (mStream->data_type & 7); }
 	off_t obytes() const { return mOutBytes; }
 };
 
@@ -80,7 +81,7 @@ public:
 	virtual void moreData(Buffer& buf);
 	virtual void writeOut(size_t n) { resetOutBuf(); }
 	virtual Buffer& outBuf() { return mOutBuf; }
-	virtual off_t ipos() const { return mFH.tell() - mStream.avail_in; }
+	virtual off_t ipos() const { return mFH.tell() - mStream->avail_in; }
 };
 
 struct GzipHeaderReader : public DiscardingGzipReader {
@@ -91,7 +92,7 @@ struct GzipHeaderReader : public DiscardingGzipReader {
 	void header(gz_header& hdr) {
 		hdr.name_max = 0;
 		initialize();
-		throwEx("header", inflateGetHeader(&mStream, &hdr));
+		throwEx("header", inflateGetHeader(mStream.get(), &hdr));
 		while (!hdr.done)
 			stepThrow();
 	}
