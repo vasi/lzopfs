@@ -26,10 +26,11 @@ CompressedFile *FileList::find(const std::string& dest) {
 void FileList::add(const std::string& source) {
 	CompressedFile *file = 0;
 	try {
+		OpenParams params(mMaxBlockSize, mIndexRoot);
 		OpenerList::const_iterator iter;
 		for (iter = Openers.begin(); iter != Openers.end(); ++iter) {
 			try {
-				file = (*iter)(source, mMaxBlockSize);
+				file = (*iter)(source, params);
 				break;
 			} catch (CompressedFile::FormatException& e) {
 				// just keep going

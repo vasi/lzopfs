@@ -3,6 +3,8 @@
 
 #include "lzopfs.h"
 #include "CompressedFile.h"
+#include "FileList.h"
+
 
 #include <list>
 
@@ -47,11 +49,11 @@ public:
 	static const uint64_t BlockMagicMask = (1LL << (BlockMagicBytes * 8)) - 1;
 	static const uint64_t EOSMagic = 0x177245385090;
 	
-	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
-		{ return new Bzip2File(path, maxBlock); }
+	static CompressedFile* open(const std::string& path, const OpenParams& params)
+		{ return new Bzip2File(path, params); }
 	
-	Bzip2File(const std::string& path, uint64_t maxBlock)
-		: IndexedCompFile(path) { initialize(maxBlock); }
+	Bzip2File(const std::string& path, const OpenParams& params)
+		: IndexedCompFile(path, params.indexRoot) { initialize(params.maxBlock); }
 	
 	virtual std::string destName() const;
 	

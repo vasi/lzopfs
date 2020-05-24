@@ -126,13 +126,13 @@ namespace {
 	bool gLzopInited = false;
 }
 
-LzopFile::LzopFile(const std::string& path, uint64_t maxBlock)
-		: IndexedCompFile(path) {
+LzopFile::LzopFile(const std::string& path, const OpenParams& params)
+		: IndexedCompFile(path, params.indexRoot) {
 	if (!gLzopInited) {
 		lzo_init();
 		gLzopInited = true;
 	}
-	initialize(maxBlock);
+	initialize(params.maxBlock);
 }
 
 void LzopFile::decompressBlock(const FileHandle& fh, const Block& b,

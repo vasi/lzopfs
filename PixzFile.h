@@ -3,6 +3,8 @@
 
 #include "lzopfs.h"
 #include "CompressedFile.h"
+#include "FileList.h"
+
 
 #include <lzma.h>
 
@@ -43,8 +45,8 @@ protected:
 	void streamInit(lzma_stream& s) const;
 	
 public:
-	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
-		{ return new PixzFile(path, maxBlock); }
+	static CompressedFile* open(const std::string& path, const OpenParams& params)
+		{ return new PixzFile(path, params.maxBlock); }
 	
 	PixzFile(const std::string& path, uint64_t maxBlock);
 	virtual ~PixzFile();

@@ -125,10 +125,12 @@ struct OptData {
 	paths_t* files;
 	
 	unsigned gzipBlockFactor;
+	const char *indexRoot;
 };
 
 static struct fuse_opt lf_opts[] = {
 	{ "--gzip-block-factor=%lu", offsetof(OptData, gzipBlockFactor), 0 },
+	{ "--index-root=%s", offsetof(OptData, indexRoot), 0 },
 	{NULL, -1U, 0},
 };
 
@@ -176,7 +178,7 @@ int main(int argc, char *argv[]) {
 		if (optd.gzipBlockFactor)
 			GzipFile::gMinDictBlockFactor = optd.gzipBlockFactor;
 		
-		FileList *flist = new FileList(CacheSize);
+		FileList *flist = new FileList(CacheSize, optd.indexRoot);
 		for (paths_t::const_iterator iter = files.begin(); iter != files.end();
 				++iter) {
 			flist->add(*iter);

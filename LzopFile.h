@@ -3,6 +3,7 @@
 
 #include "lzopfs.h"
 #include "CompressedFile.h"
+#include "FileList.h"
 
 class LzopFile : public IndexedCompFile {
 protected:
@@ -36,10 +37,10 @@ protected:
 	virtual void buildIndex(FileHandle& fh);
 	
 public:
-	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
-		{ return new LzopFile(path, maxBlock); }
+	static CompressedFile* open(const std::string& path, const OpenParams& params)
+		{ return new LzopFile(path, params); }
 	
-	LzopFile(const std::string& path, uint64_t maxBlock);
+	LzopFile(const std::string& path, const OpenParams& params);
 	
 	virtual std::string destName() const;
 	

@@ -4,6 +4,8 @@
 #include "lzopfs.h"
 #include "CompressedFile.h"
 #include "GzipReader.h"
+#include "FileList.h"
+
 
 class GzipFile : public IndexedCompFile {
 protected:
@@ -30,10 +32,10 @@ public:
 	static const size_t WindowSize;
 	static uint64_t gMinDictBlockFactor;
 	
-	static CompressedFile* open(const std::string& path, uint64_t maxBlock)
-		{ return new GzipFile(path, maxBlock); }
+	static CompressedFile* open(const std::string& path, const OpenParams& params)
+		{ return new GzipFile(path, params); }
 	
-	GzipFile(const std::string& path, uint64_t maxBlock);
+	GzipFile(const std::string& path, const OpenParams& params);
 	
 	virtual std::string destName() const;
 	

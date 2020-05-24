@@ -69,7 +69,7 @@ void IndexedCompFile::initialize(uint64_t maxBlock) {
 }
 
 std::string IndexedCompFile::indexPath() const {
-	return path() + ".blockIdx";
+	return mIndexPath;
 }
 
 namespace {
@@ -150,4 +150,13 @@ void IndexedCompFile::writeBlock(FileHandle& fh, const Block* b) const {
 	fh.writeBE(b->usize);
 	fh.writeBE(b->csize);
 	fh.writeBE(b->coff);	
+}
+
+IndexedCompFile::IndexedCompFile(const std::string& path, const std::string& indexRoot)
+		: CompressedFile(path) {
+	if (indexRoot.empty()) {
+		mIndexPath = path + ".blockIdx";
+	} else {
+		mIndexPath = indexRoot + "/" + PathUtils::basename(path) + ".blockIdx";
+	}
 }

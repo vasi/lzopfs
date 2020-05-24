@@ -3,11 +3,19 @@
 
 #include "CompressedFile.h"
 #include "TR1.h"
+#include "PathUtils.h"
 
 #include <string>
 #include <vector>
 
 #include <stdint.h>
+
+struct OpenParams {
+	uint64_t maxBlock;
+	std::string indexRoot;
+
+	OpenParams(uint64_t pMaxBlock, std::string pIndexRoot) : maxBlock(pMaxBlock), indexRoot(pIndexRoot) {}
+};
 
 class FileList {
 private:
@@ -19,16 +27,20 @@ protected:
 	typedef unordered_map<std::string,CompressedFile*> Map;
 	Map mMap;
 	uint64_t mMaxBlockSize;
+	std::string mIndexRoot;
 	
 	typedef CompressedFile* (*OpenFunc)(const std::string& path,
-		uint64_t maxBlock);
+		const OpenParams& params);
 	typedef std::vector<OpenFunc> OpenerList;
 	static const OpenerList Openers;
 	static OpenerList initOpeners();
 	
 public:
-	FileList(uint64_t maxBlockSize = UINT64_MAX)
-		: mMaxBlockSize(maxBlockSize) { }
+	FileList(uint64_t maxBlockSize, const char *indexRoot)
+		: mMaxBlockSize(maxBlockSize) {
+		if (indexRoot != NULL)
+			mIndexRoot = PathUtils::realpath(indexRoot);
+	}
 	virtual ~FileList();
 	
 	CompressedFile *find(const std::string& dest);

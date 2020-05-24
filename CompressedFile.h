@@ -72,14 +72,13 @@ public:
 
 class IndexedCompFile : public CompressedFile {
 public:
-	IndexedCompFile(const std::string& path)
-		: CompressedFile(path) { }
+	IndexedCompFile(const std::string& path, const std::string& indexRoot);
 	virtual ~IndexedCompFile();
 
 protected:	
 	typedef std::vector<Block*> BlockList;
-	BlockList mBlocks;	
-	
+	BlockList mBlocks;
+	std::string mIndexPath;	
 	
 	class Iterator : public BlockIteratorInner {
 		BlockList::const_iterator mIter, mEnd;

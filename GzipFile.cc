@@ -116,9 +116,9 @@ void GzipFile::buildIndex(FileHandle& fh) {
 //	dumpBlocks();
 }
 
-GzipFile::GzipFile(const std::string& path, uint64_t maxBlock)
-		: IndexedCompFile(path) {
-	initialize(maxBlock);
+GzipFile::GzipFile(const std::string& path, const OpenParams& params)
+		: IndexedCompFile(path, params.indexRoot) {
+	initialize(params.maxBlock);
 }
 
 void GzipFile::decompressBlock(const FileHandle& fh, const Block& b,
