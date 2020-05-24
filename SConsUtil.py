@@ -53,7 +53,7 @@ def FindLib(conf, lib, hdr, managers = ['port', 'fink']):
         orig_cpppath = conf.env['CPPPATH']
         conf.env.Append(LIBPATH = [pre + "/lib"])
         conf.env.Append(CPPPATH = [pre + "/include"])
-        print "Try package manager '%s'..." % pkgman
+        print("Try package manager '%s'..." % pkgman)
         if conf.CheckLib(lib) and conf.CheckHeader(hdr):
             pkgmans[pkgman] = True
             return True
@@ -79,7 +79,7 @@ def FindCXX(conf, compilers = ['clang++', 'g++']):
         compilers.insert(0, os.environ['CXX'])
     for cxx in compilers:
         conf.env['CXX'] = cxx
-        print 'Checking if we can compile with %s' % cxx
+        print('Checking if we can compile with %s' % cxx)
         if conf.CheckCXX():
             return True
     return False
