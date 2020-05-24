@@ -89,6 +89,7 @@ struct GzipHeaderReader : public DiscardingGzipReader {
 	virtual size_t chunkSize() const { return 512; }
 	virtual Wrapper wrapper() const { return Gzip; }
 	void header(gz_header& hdr) {
+		hdr.name_max = 0;
 		initialize();
 		throwEx("header", inflateGetHeader(&mStream, &hdr));
 		while (!hdr.done)
