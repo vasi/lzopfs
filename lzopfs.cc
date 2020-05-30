@@ -27,7 +27,7 @@ struct FSData {
 	FileList *files;
 	ThreadPool pool;
 	BlockCache cache;
-	
+
 	FSData(FileList* f) : files(f), pool(), cache(pool) {
 		cache.maxSize(CacheSize);
 	}
@@ -50,7 +50,7 @@ extern "C" void *lf_init(struct fuse_conn_info *conn) {
 
 extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
 	memset(stbuf, 0, sizeof(*stbuf));
-	
+
 	CompressedFile *file;
 	if (strcmp(path, "/") == 0) {
 		stbuf->st_mode = S_IFDIR | 0755;
@@ -78,7 +78,7 @@ extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		off_t offset, struct fuse_file_info *fi) {
 	if (strcmp(path, "/") != 0)
 		return -ENOENT;
-	
+
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 	fsdata()->files->forNames(DirFiller(buf, filler));
@@ -91,7 +91,7 @@ extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
 		return -ENOENT;
 	if ((fi->flags & O_ACCMODE) != O_RDONLY)
 		return -EACCES;
-	
+
 	try {
 		fi->fh = FuseFH(new OpenCompressedFile(file, fi->flags));
 		return 0;
@@ -123,7 +123,7 @@ typedef std::vector<std::string> paths_t;
 struct OptData {
 	const char *nextSource;
 	paths_t* files;
-	
+
 	unsigned gzipBlockFactor;
 	const char *indexRoot;
 };
@@ -157,7 +157,7 @@ extern "C" int lf_opt_proc(void *data, const char *arg, int key,
 int main(int argc, char *argv[]) {
 	try {
 		umask(0);
-		
+
 		struct fuse_operations ops;
 		memset(&ops, 0, sizeof(ops));
 		ops.getattr = lf_getattr;
@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
 		ops.release = lf_release;
 		ops.read = lf_read;
 		ops.init = lf_init;
-		
+
 		// FIXME: help with options?
 		paths_t files;
 		OptData optd = { 0, &files, 0 };
@@ -174,16 +174,16 @@ int main(int argc, char *argv[]) {
 		fuse_opt_parse(&args, &optd, lf_opts, lf_opt_proc);
 		if (optd.nextSource)
 			fuse_opt_add_arg(&args, optd.nextSource);
-		
+
 		if (optd.gzipBlockFactor)
 			GzipFile::gMinDictBlockFactor = optd.gzipBlockFactor;
-		
+
 		FileList *flist = new FileList(CacheSize, optd.indexRoot);
 		for (paths_t::const_iterator iter = files.begin(); iter != files.end();
 				++iter) {
 			flist->add(*iter);
 		}
-		
+
 		fprintf(stderr, "Ready\n");
 		return fuse_main(args.argc, args.argv, &ops, flist);
 	} catch (std::runtime_error& e) {

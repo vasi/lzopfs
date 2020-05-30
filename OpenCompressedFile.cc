@@ -17,10 +17,10 @@ namespace {
 		char *buf;
 		size_t size;
 		off_t offset;
-		
+
 		Callback(off_t& m, char *b, size_t s, off_t o)
 			: max(m), buf(b), size(s), offset(o) { }
-		
+
 		virtual void operator()(const Block& block,
 				BlockCache::BufPtr& ubuf) {
 			off_t omin = std::max(offset, off_t(block.uoff)),
@@ -39,6 +39,6 @@ ssize_t OpenCompressedFile::read(BlockCache& cache,
 	CompressedFile::BlockIterator biter = mFile->findBlock(offset);
 	Callback cb(max, buf, size, offset);
 	cache.getBlocks(*this, biter, offset + size, cb);
-	
+
 	return max - offset;
 }

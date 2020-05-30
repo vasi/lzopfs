@@ -22,7 +22,7 @@ FileHandle::FileHandle(const std::string& path, int flags, mode_t mode)
 void FileHandle::open(const std::string& path, int flags, mode_t mode) {
 	if (mFD != -1)
 		throwEx("double open", 0);
-	
+
 	mPath = path;
 	mFD = ::open(mPath.c_str(), flags, mode);
 	if (mFD == -1) THROW_EX("open");
@@ -140,13 +140,13 @@ off_t FileHandle::size() const {
 void FileHandle::convertBEBuf(char *buf, size_t size) {
 	#ifdef __LITTLE_ENDIAN__
 		std::reverse(buf, buf + size);
-	#endif	
+	#endif
 }
 
 void FileHandle::convertLEBuf(char *buf, size_t size) {
 	#ifndef __LITTLE_ENDIAN__
 		std::reverse(buf, buf + size);
-	#endif	
+	#endif
 }
 
 void FileHandle::writeBuf(const Buffer& b, const std::string& path) {

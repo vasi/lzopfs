@@ -41,10 +41,10 @@ void FileList::add(const std::string& source) {
 				source.c_str());
 			return;
 		}
-		
+
 		std::string dest("/");
 		dest.append(file->destName());
-		mMap[dest] = file;		
+		mMap[dest] = file;
 	} catch (std::runtime_error& e) {
 		fprintf(stderr, "Error reading file %s, skipping: %s\n",
 			source.c_str(), e.what());

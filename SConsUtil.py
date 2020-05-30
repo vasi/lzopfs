@@ -19,7 +19,7 @@ def IsMac(conf):
     if mac == None:
         mac = conf.CheckMac()
     return mac
-    
+
 def CheckMac(ctx):
     ctx.Message('Checking if this is Mac OS X...')
     ret = (platform.system() == 'Darwin')
@@ -90,7 +90,7 @@ def FindFUSE(conf):
         return True
     if not IsMac(conf):
         return False
-    
+
     mac_flags = ' -D_FILE_OFFSET_BITS=64 -D__DARWIN_64_BIT_INO_T=1 '
     if conf.CheckLib('fuse_ino64'):
         mac_flags += ' -D__FreeBSD__=10 '

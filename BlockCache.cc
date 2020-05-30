@@ -7,12 +7,12 @@
 void BlockCache::dump() {
 	Map::Iterator iter;
 	size_t blocks = 0;
-	
+
 	for (iter = mMap.begin(); iter != mMap.end(); ++iter)
 		++blocks;
 	fprintf(stderr, "\nCache: %3zu blocks, %5.2f MB\n",
 		blocks, mMap.weight() / 1024.0 / 1024);
-	
+
 	for (iter = mMap.begin(); iter != mMap.end(); ++iter) {
 		fprintf(stderr, "  %9" PRIu64 " %s\n", uint64_t(iter->key.offset),
 			iter->key.id.c_str());
@@ -30,7 +30,7 @@ void BlockCache::Job::operator()() {
 			done = true;
 		}
 	}
-	
+
 	if (!done) {
 		BufPtr nbuf(new Buffer());
 		info.file.decompressBlock(*block.biter, *nbuf);
@@ -42,7 +42,7 @@ void BlockCache::Job::operator()() {
 		}
 		info.cb(*block.biter, nbuf);
 	}
-	
+
 	Lock lock(info.cv);
 	if (--info.remain == 0)
 		info.cv.signal();
@@ -50,7 +50,7 @@ void BlockCache::Job::operator()() {
 
 void BlockCache::getBlocks(const OpenCompressedFile& file, BlockIterator& it,
 		off_t max, Callback& cb) {
-	std::vector<NeededBlock> need;	
+	std::vector<NeededBlock> need;
 	{
 		Lock lock(mMutex);
 		for (; !it.end() && (off_t)it->uoff < max; ++it) {
@@ -64,7 +64,7 @@ void BlockCache::getBlocks(const OpenCompressedFile& file, BlockIterator& it,
 	}
 	if (need.empty())
 		return;
-	
+
 	ConditionVariable cv;
 	Lock clock(cv);
 	size_t remain = need.size();

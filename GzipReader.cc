@@ -34,7 +34,7 @@ int GzipReaderBase::step(int flush) {
 	}
 	if (mStream->avail_out == 0)
 		writeOut(outBuf().size());
-	
+
 	mOutBytes += mStream->avail_out;
 	int err = inflate(mStream.get(), flush);
 	mOutBytes -= mStream->avail_out;
@@ -51,10 +51,10 @@ int GzipReaderBase::stepThrow(int flush) {
 void GzipReaderBase::initialize(bool force) {
 	if (!force && mInitialized)
 		return;
-	
+
 	throwEx("init", inflateInit2(mStream.get(), wrapper()));
 	resetOutBuf();
-	
+
 	mInitialized = true;
 }
 
@@ -78,7 +78,7 @@ void GzipReaderBase::swap(GzipReaderBase& o) {
 }
 
 std::string GzipReaderBase::zerr(const std::string& s, int err) const {
-	char *w = NULL;	
+	char *w = NULL;
 	asprintf(&w, "%s: %s (%d)", s.c_str(), mStream->msg, err);
 	std::string ws(w);
 	free(w);
@@ -149,22 +149,22 @@ void SavingGzipReader::save() {
 	if (!mSave)
 		mSave = new PositionedGzipReader(mFH);
 	swap(*mSave);
-	
+
 	mSaveSeek = mFH.tell();
-	
+
 	// Fixup state to correspond to where we were
 	reset(Raw);
-	
+
 	mInput = mSave->mInput;
 	mStream->avail_in = mSave->mStream->avail_in;
 	mStream->next_in = &mInput[0] + mInput.size() - mStream->avail_in;
-	
+
 	mOutBuf.resize(windowSize());
 	resetOutBuf();
-	
+
 	size_t bits = mSave->ibits();
 	prime(mStream->next_in[-1], bits);
-	
+
 	mInitOutPos = mSave->opos();
 	mOutBytes = 0;
 }
@@ -172,7 +172,7 @@ void SavingGzipReader::save() {
 void SavingGzipReader::restore() {
 	if (!mSave)
 		throw std::runtime_error("no saved state");
-	
+
 	swap(*mSave);
 	mFH.seek(mSaveSeek, SEEK_SET);
 }

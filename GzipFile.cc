@@ -2,7 +2,7 @@
 
 #include "PathUtils.h"
 
-const size_t GzipFile::WindowSize = 1 << MAX_WBITS; 
+const size_t GzipFile::WindowSize = 1 << MAX_WBITS;
 uint64_t GzipFile::gMinDictBlockFactor = 32;
 
 void GzipFile::checkFileType(FileHandle& fh) {
@@ -37,7 +37,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 	fh.seek(0, SEEK_SET);
 	SavingGzipReader rd(fh);
 	off_t minBlock = gMinDictBlockFactor * WindowSize;
-	
+
 	/* Go through every block in the file.
 	 * For each block, try to see first if it can be decoded independently,
 	 * without a dictionary.
@@ -48,7 +48,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 	// Info of block we're currently examining
 	off_t uoff = 0, coff = 0, bits = 0;
 	off_t lastIdx = 0;		// Uncompressed pos of last indexed block
-	
+
 	int err;
 	while (true) {
 		err = rd.block();
@@ -64,7 +64,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 						rd.restore();
 						continue; // Go to next block after uoff
 					}
-					// If !backtrack, continue from where we're at 
+					// If !backtrack, continue from where we're at
 				} else if (rd.obytes() == 0) { // Zero-length block, ignore
 					DEBUG("zero, rewinding!");
 					indep = false;
@@ -76,7 +76,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 					backtrack = true;
 				}
 			}
-			
+
 			if (err == Z_STREAM_END) {
 				rd.skipFooter();
 				if (rd.ipos() == fh.size())
@@ -84,7 +84,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 				else
 					rd.reset(GzipReaderBase::Gzip); // next stream
 			}
-			
+
 			if (!indep) { // Check if this new block is indep
 				uoff = rd.opos();
 				coff = rd.ipos();
@@ -93,11 +93,11 @@ void GzipFile::buildIndex(FileHandle& fh) {
 				rd.save();
 				backtrack = false;
 				indep = true;
-			}			
+			}
 		} else { // There was an error
 			if (!indep)
 				throwFormat(rd.zerr("gzip decode", err));
-			
+
 			if (indep) { // Indep decode failed, so rewind
 				DEBUG("...failed, rewinding!");
 				indep = false;
@@ -109,10 +109,10 @@ void GzipFile::buildIndex(FileHandle& fh) {
 					rd.copyWindow(dict);
 					lastIdx = rd.opos();
 				}
-			} 
+			}
 		}
 	}
-	setLastBlockSize(rd.opos(), rd.ipos());	
+	setLastBlockSize(rd.opos(), rd.ipos());
 //	dumpBlocks();
 }
 
@@ -147,25 +147,25 @@ namespace {
 bool GzipFile::readBlock(FileHandle& fh, Block *b) {
 	if (!IndexedCompFile::readBlock(fh, b))
 		return false;
-	
+
 	GzipBlock *gb = dynamic_cast<GzipBlock*>(b);
 	uint8_t flags;
 	fh.readBE(flags);
 	gb->bits = flags & BlockBitsMask;
 	if (flags & BlockDictFlag)
 		fh.read(gb->dict, WindowSize);
-	
+
 	return true;
 }
 
 void GzipFile::writeBlock(FileHandle& fh, const Block* b) const {
 	IndexedCompFile::writeBlock(fh, b);
-	
+
 	const GzipBlock* gb = dynamic_cast<const GzipBlock*>(b);
 	uint8_t flags = (gb->bits & BlockBitsMask);
 	if (!gb->dict.empty())
 		flags |= BlockDictFlag;
-	
+
 	fh.writeBE(flags);
 	if (flags & BlockDictFlag)
 		fh.write(gb->dict);
