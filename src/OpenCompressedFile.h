@@ -11,16 +11,16 @@ class OpenCompressedFile {
 protected:
 	const CompressedFile *mFile;
 	FileHandle mFH;
-	
+
 public:
 	typedef std::string FileID;
-	
+
 	OpenCompressedFile(const CompressedFile *file, int openFlags);
-	
+
 	void decompressBlock(const Block& b, Buffer& ubuf) const;
 	ssize_t read(BlockCache& cache, char *buf, size_t size, off_t offset)
 		const;
-	
+
 	FileID id() const { return mFile->path(); }
 };
 

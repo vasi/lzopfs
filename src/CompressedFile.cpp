@@ -45,7 +45,7 @@ void CompressedFile::dumpBlocks() {
 void IndexedCompFile::initialize(uint64_t maxBlock) {
 	FileHandle fh(path(), O_RDONLY);
 	checkFileType(fh);
-	
+
 	// Try reading the index
 	bool index = false;
 	{
@@ -58,7 +58,7 @@ void IndexedCompFile::initialize(uint64_t maxBlock) {
 		if (idxr.open() && readIndex(idxr))
 			index = true;
 	}
-	
+
 	if (!index) {
 		buildIndex(fh);
 		FileHandle idxw(indexPath(), O_WRONLY | O_CREAT | O_TRUNC, 0664);
@@ -77,7 +77,7 @@ struct BlockOffsetOrdering {
 	bool operator()(const Block* b, off_t off) {
 		return (b->uoff + b->usize - 1) < (uint64_t)off;
 	}
-	
+
 	bool operator()(off_t off, const Block* b) {
 		return (uint64_t)off < b->uoff;
 	}
@@ -149,7 +149,7 @@ void IndexedCompFile::writeIndex(FileHandle& fh) const {
 void IndexedCompFile::writeBlock(FileHandle& fh, const Block* b) const {
 	fh.writeBE(b->usize);
 	fh.writeBE(b->csize);
-	fh.writeBE(b->coff);	
+	fh.writeBE(b->coff);
 }
 
 IndexedCompFile::IndexedCompFile(const std::string& path, const std::string& indexRoot)

@@ -10,7 +10,7 @@
 class Mutex {
 protected:
 	pthread_mutex_t mMutex;
-	
+
 public:
 	Mutex() { pthread_mutex_init(&mMutex, 0); }
 	~Mutex() { pthread_mutex_destroy(&mMutex); }
@@ -20,7 +20,7 @@ public:
 
 class Lock {
 	Mutex& mMutex;
-	
+
 public:
 	Lock(Mutex& m) : mMutex(m) { mMutex.lock(); }
 	~Lock() { mMutex.unlock(); }
@@ -28,11 +28,11 @@ public:
 
 class ConditionVariable : public Mutex {
 	pthread_cond_t mCond;
-	
+
 public:
 	ConditionVariable() { pthread_cond_init(&mCond, 0); }
 	~ConditionVariable() { pthread_cond_destroy(&mCond); }
-	
+
 	void wait() { pthread_cond_wait(&mCond, &mMutex); }
 	void signal() { pthread_cond_signal(&mCond); }
 	void broadcast() { pthread_cond_broadcast(&mCond); }
@@ -56,21 +56,21 @@ protected:
 	typedef std::vector<ThreadInfo> ThreadList;
 	ThreadList mThreads;
 	ConditionVariable mCond;
-	
+
 	typedef std::queue<Job*> JobQ;
 	JobQ mJobs;
 	bool mCancelling;
-	
-	
+
+
 	size_t systemCPUs() const;
 	Job *nextJob();
-	
+
 	static void *threadFunc(void *val);
 
-public:	
+public:
 	ThreadPool(size_t threads = 0);
 	~ThreadPool();
-	
+
 	void enqueue(Job* job);
 };
 

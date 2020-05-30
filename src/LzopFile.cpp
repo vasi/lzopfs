@@ -25,47 +25,47 @@ void LzopFile::readHeaders(FileHandle& fh, uint32_t& flags) {
 		if (memcmp(&magic[0], Magic, magic.size()) != 0)
 			throwFormat("magic mismatch");
 		off_t headerStart = fh.tell();
-		
+
 		uint16_t lzopEncVers, lzopMinVers, lzoVers;
 		fh.readBE(lzopEncVers);
 		fh.readBE(lzoVers);
 		fh.readBE(lzopMinVers);
 		if (lzopMinVers > LzopDecodeVersion)
 			throwFormat("lzop version too new");
-		
+
 		uint8_t method, level;
 		fh.readBE(method);
 		fh.readBE(level);
-		
+
 		fh.readBE(flags);
 		if (flags & Filter)
 			throwFormat("filter not supported");
-		
+
 		fh.seek(3 * sizeof(uint32_t)); // skip mode, mtimes
-		
+
 		uint8_t filenameSize;
 		fh.readBE(filenameSize);
 		if (filenameSize > 0)
 			fh.seek(filenameSize);
-		
-		
+
+
 		// Check the checksum
 		size_t headerSize = fh.tell() - headerStart;
 		fh.seek(headerStart, SEEK_SET);
 		Buffer header;
 		fh.read(header, headerSize);
-		
+
 		Checksum cksum;
 		fh.readBE(cksum);
 		if (cksum != checksum((flags & HeaderCRC) ? CRC : Adler, header))
 			throwFormat("checksum mismatch");
-		
-		
+
+
 		if (flags & ExtraField) { // unused?
 			uint32_t extraSize;
 			fh.readBE(extraSize);
 			fh.seek(extraSize + sizeof(Checksum));
-		}		
+		}
 	} catch (FileHandle::EOFException& e) {
 		throwFormat("EOF");
 	}
@@ -78,7 +78,7 @@ LzopFile::Checksum LzopFile::checksum(ChecksumType type, const Buffer& buf) {
 
 void LzopFile::buildIndex(FileHandle& fh) {
 	off_t size = fh.size();
-	
+
 	uint32_t flags = mFlags;
 	off_t uoff = 0;
 	while (true) {
@@ -89,7 +89,7 @@ void LzopFile::buildIndex(FileHandle& fh) {
 	}
 }
 
-off_t LzopFile::findBlocks(FileHandle& fh, uint32_t flags, off_t uoff) {	
+off_t LzopFile::findBlocks(FileHandle& fh, uint32_t flags, off_t uoff) {
 	// How much space for checksums?
 	size_t csums = 0, usums = 0;
 	if (flags & CRCComp) ++csums;
@@ -98,7 +98,7 @@ off_t LzopFile::findBlocks(FileHandle& fh, uint32_t flags, off_t uoff) {
 	if (flags & AdlerDec) ++usums;
 	csums *= sizeof(uint32_t);
 	usums *= sizeof(uint32_t);
-	
+
 	// Iterate thru the blocks
 	size_t bheader = 2 * sizeof(uint32_t);
 	uint32_t usize, csize;
@@ -109,13 +109,13 @@ off_t LzopFile::findBlocks(FileHandle& fh, uint32_t flags, off_t uoff) {
 		if (usize == 0)
 			return uoff;
 		fh.readBE(csize);
-		
+
 		sums = usums;
 		if (usize != csize)
 			sums += csums;
-		
+
 		addBlock(new Block(usize, csize, uoff, coff + bheader + sums));
-		
+
 		coff += sums + csize + 2 * sizeof(uint32_t);
 		uoff += usize;
 		fh.seek(sums + csize);
@@ -141,10 +141,10 @@ void LzopFile::decompressBlock(const FileHandle& fh, const Block& b,
 		fh.pread(b.coff, ubuf, b.usize);
 		return;
 	}
-	
+
 	Buffer cbuf;
-	fh.pread(b.coff, cbuf, b.csize);	
-	
+	fh.pread(b.coff, cbuf, b.csize);
+
 	ubuf.resize(b.usize);
 	lzo_uint usize = b.usize;
 //	fprintf(stderr, "Decompressing from %" PRIu64 "\n", uint64_t(b.coff));

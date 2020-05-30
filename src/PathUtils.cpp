@@ -7,11 +7,11 @@ namespace PathUtils {
 string basename(const string& path) {
 	if (path.empty())
 		return string(".");
-	
+
 	size_t bend = path.find_last_not_of('/');
 	if (bend == string::npos)
 		return string("/");
-	
+
 	size_t bstart = path.find_last_of('/', bend);
 	return string(
 		&path[bstart == string::npos ? 0 : bstart + 1],
@@ -25,14 +25,14 @@ size_t endsWith(const string& haystack, const string& needle) {
 	if (haystack.compare(haystack.size() - needle.size(),
 			needle.size(), needle) != 0)
 		return string::npos;
-	
+
 	return haystack.size() - needle.size();
 }
 
 size_t hasExtension(const string& name, const string& ext) {
 	string e(".");
 	e.append(ext);
-	
+
 	size_t pos = endsWith(name, e);
 	if (pos == 0 || pos == string::npos) // can't start with extension
 		return string::npos;

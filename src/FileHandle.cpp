@@ -22,7 +22,7 @@ FileHandle::FileHandle(const std::string& path, int flags, mode_t mode)
 void FileHandle::open(const std::string& path, int flags, mode_t mode) {
 	if (mFD != -1)
 		throwEx("double open", 0);
-	
+
 	mPath = path;
 	mFD = ::open(mPath.c_str(), flags, mode);
 	if (mFD == -1) THROW_EX("open");
@@ -125,28 +125,24 @@ off_t FileHandle::size() const {
 	return size;
 }
 
-#include "config.h"
-#ifdef HAVE_LIBKERN_OSBYTEORDER_H
-	#include <libkern/OSByteOrder.h>
-#elif defined(HAVE_ENDIAN_H)
-	#include <endian.h>
-	#if __BYTE_ORDER == __LITTLE_ENDIAN
-		#define __LITTLE_ENDIAN__
-	#endif
+#ifdef USE_BIG_ENDIAN
+    #if USE_BIG_ENDIAN == 0
+        #define __LITTLE_ENDIAN__
+    #endif
 #else
-	#error "No endianness header."
+	#error "No endianness specified!"
 #endif
 
 void FileHandle::convertBEBuf(char *buf, size_t size) {
 	#ifdef __LITTLE_ENDIAN__
 		std::reverse(buf, buf + size);
-	#endif	
+	#endif
 }
 
 void FileHandle::convertLEBuf(char *buf, size_t size) {
 	#ifndef __LITTLE_ENDIAN__
 		std::reverse(buf, buf + size);
-	#endif	
+	#endif
 }
 
 void FileHandle::writeBuf(const Buffer& b, const std::string& path) {
