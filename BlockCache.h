@@ -26,7 +26,7 @@ protected:
 			return o.offset == offset && o.id == id;
 		}
 	};
-	struct KeyHasher : public std::unary_function<Key, std::size_t> {
+	struct KeyHasher {
 		size_t operator()(const Key& k) const {
 			return hash<std::string>()(k.id) * 37 + k.offset;
 		}

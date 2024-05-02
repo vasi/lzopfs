@@ -10,6 +10,7 @@ env = Environment(
     LINKFLAGS = '-g',
     CPPFLAGS = '-Wall -g %s' % opt,
     ENV = { 'PATH' : os.environ['PATH'] })
+env.Append(CPPFLAGS = ' ' + os.environ.get('CPPFLAGS', ''))
 
 conf = Configure(env, help = True, config_h = 'config.h',
     custom_tests = { 'CheckPkg': CheckPkg, 'CheckMac': CheckMac })
