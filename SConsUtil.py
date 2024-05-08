@@ -86,7 +86,7 @@ def FindCXX(conf, compilers = ['clang++', 'g++']):
 
 # pkg-config is broken for MacFUSE
 def FindFUSE(conf):
-    if conf.CheckPkg('fuse'):
+    if conf.CheckPkg('fuse') or conf.CheckPkg('fuse3'):
         return True
     if not IsMac(conf):
         return False

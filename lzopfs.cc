@@ -14,7 +14,7 @@
 #include <cstring>
 #include <cstdlib>
 
-#define FUSE_USE_VERSION 26
+#define FUSE_USE_VERSION 30
 #include <fuse.h>
 
 namespace {
@@ -44,12 +44,20 @@ void except(std::runtime_error& e) {
 	exit(1);
 }
 
-extern "C" void *lf_init(struct fuse_conn_info *conn) {
+extern "C" void *lf_init(struct fuse_conn_info *conn
+#if FUSE_MAJOR_VERSION >= 3
+	, struct fuse_config *cfg
+#endif
+) {
 	void *priv = fuse_get_context()->private_data;
 	return new FSData(reinterpret_cast<FileList*>(priv));
 }
 
-extern "C" int lf_getattr(const char *path, struct stat *stbuf) {
+extern "C" int lf_getattr(const char *path, struct stat *stbuf
+#if FUSE_MAJOR_VERSION >= 3
+	, struct fuse_file_info *fi
+#endif
+) {
 	memset(stbuf, 0, sizeof(*stbuf));
 	
 	CompressedFile *file;
@@ -71,18 +79,27 @@ struct DirFiller {
 	fuse_fill_dir_t filler;
 	DirFiller(void *b, fuse_fill_dir_t f) : buf(b), filler(f) { }
 	void operator()(const std::string& path) {
-		filler(buf, path.c_str() + 1, NULL, 0);
+		filler(buf, path.c_str() + 1, NULL, 0
+#if FUSE_MAJOR_VERSION >= 3
+			, (fuse_fill_dir_flags)0
+#endif
+		);
 	}
 };
 
 extern "C" int lf_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-		off_t offset, struct fuse_file_info *fi) {
+		off_t offset, struct fuse_file_info *fi
+#if FUSE_MAJOR_VERSION >= 3
+		, fuse_readdir_flags flags
+#endif
+) {
 	if (strcmp(path, "/") != 0)
 		return -ENOENT;
 	
-	filler(buf, ".", NULL, 0);
-	filler(buf, "..", NULL, 0);
-	fsdata()->files->forNames(DirFiller(buf, filler));
+	DirFiller dirFiller(buf, filler);
+	dirFiller(".");
+	dirFiller("..");
+	fsdata()->files->forNames(dirFiller);
 	return 0;
 }
 
