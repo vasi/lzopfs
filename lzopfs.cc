@@ -22,6 +22,7 @@ namespace {
 typedef uint64_t FuseFH;
 
 const size_t CacheSize = 1024 * 1024 * 32;
+const size_t DefaultBlockFactor = 32;
 
 struct FSData {
 	FileList *files;
@@ -124,12 +125,12 @@ struct OptData {
 	const char *nextSource;
 	paths_t* files;
 	
-	unsigned gzipBlockFactor;
+	unsigned blockFactor;
 	const char *indexRoot;
 };
 
 static struct fuse_opt lf_opts[] = {
-	{ "--gzip-block-factor=%lu", offsetof(OptData, gzipBlockFactor), 0 },
+	{ "--block-factor=%lu", offsetof(OptData, blockFactor), 0 },
 	{ "--index-root=%s", offsetof(OptData, indexRoot), 0 },
 	{NULL, -1U, 0},
 };
@@ -169,16 +170,13 @@ int main(int argc, char *argv[]) {
 		
 		// FIXME: help with options?
 		paths_t files;
-		OptData optd = { 0, &files, 0, "" };
+		OptData optd = { 0, &files, DefaultBlockFactor, "" };
 		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 		fuse_opt_parse(&args, &optd, lf_opts, lf_opt_proc);
 		if (optd.nextSource)
 			fuse_opt_add_arg(&args, optd.nextSource);
 		
-		if (optd.gzipBlockFactor)
-			GzipFile::gMinDictBlockFactor = optd.gzipBlockFactor;
-
-		OpenParams params(CacheSize, optd.indexRoot);
+		OpenParams params(CacheSize, optd.indexRoot, optd.blockFactor);
 		
 		FileList *flist = new FileList(params);
 		for (paths_t::const_iterator iter = files.begin(); iter != files.end();

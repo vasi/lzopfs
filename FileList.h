@@ -13,8 +13,10 @@
 struct OpenParams {
 	uint64_t maxBlock;
 	std::string indexRoot;
+	size_t blockFactor;
 
-	OpenParams(uint64_t pMaxBlock, std::string pIndexRoot) : maxBlock(pMaxBlock), indexRoot(pIndexRoot) {}
+	OpenParams(uint64_t pMaxBlock, std::string pIndexRoot, size_t pBlockFactor)
+		: maxBlock(pMaxBlock), indexRoot(pIndexRoot), blockFactor(pBlockFactor) {}
 };
 
 class FileList {

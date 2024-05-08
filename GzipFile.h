@@ -30,11 +30,12 @@ protected:
 
 public:
 	static const size_t WindowSize;
-	static uint64_t gMinDictBlockFactor;
-	
+
 	static CompressedFile* open(const std::string& path, const OpenParams& params)
 		{ return new GzipFile(path, params); }
 	
+	size_t mBlockFactor;
+
 	GzipFile(const std::string& path, const OpenParams& params);
 	
 	virtual std::string destName() const;

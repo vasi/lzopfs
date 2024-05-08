@@ -3,7 +3,6 @@
 #include "PathUtils.h"
 
 const size_t GzipFile::WindowSize = 1 << MAX_WBITS; 
-uint64_t GzipFile::gMinDictBlockFactor = 32;
 
 void GzipFile::checkFileType(FileHandle& fh) {
 	try {
@@ -36,7 +35,7 @@ Buffer& GzipFile::addBlock(off_t uoff, off_t coff, size_t bits) {
 void GzipFile::buildIndex(FileHandle& fh) {
 	fh.seek(0, SEEK_SET);
 	SavingGzipReader rd(fh);
-	off_t minBlock = gMinDictBlockFactor * WindowSize;
+	off_t minBlock = mBlockFactor * WindowSize;
 	
 	/* Go through every block in the file.
 	 * For each block, try to see first if it can be decoded independently,
@@ -117,7 +116,7 @@ void GzipFile::buildIndex(FileHandle& fh) {
 }
 
 GzipFile::GzipFile(const std::string& path, const OpenParams& params)
-		: IndexedCompFile(path, params.indexRoot) {
+		: IndexedCompFile(path, params.indexRoot), mBlockFactor(params.blockFactor) {
 	initialize(params.maxBlock);
 }
 

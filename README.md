@@ -31,7 +31,7 @@ Only a couple of options are supported:
 
 * `--index-root=DIR`. For some formats, lzopfs needs to create auxiliary index files. It tries to put them next to the input files, but sometimes that's not great, such as if that's a read-only disk. This option tells lzopfs to put them somewhere else.
 
-* `--gzip-block-factor=SCALE`. Gzip input files can require rather large auxiliary index files. This option tunes just how large they'll be: the larger SCALE is, the smaller index files you'll have, but the more expensive random access will be. The default is 32.
+* `--block-factor=SCALE`. Gzip input files can require rather large auxiliary index files. This option tunes just how large they'll be: the larger SCALE is, the smaller index files you'll have, but the more expensive random access will be. The default is 32.
 
 ## What compression formats are supported?
 
@@ -63,7 +63,7 @@ Even after the index is built, decompressing blocks requires repairing byte alig
 
 Gzip is the worst format for lzopfs. Even if you know where a gzip block begins, that's not enough to decompress it--you also need the current state of the DEFLATE decompressor.
 
-Indexing gzip files requires actually decompressing them, and saving the DEFLATE "dictionary" every so often so that random access is possible. This can make index files for gzip quite large, up to 10% of the compressed file size. You can use the `--gzip-block-factor` option to tune this.
+Indexing gzip files requires actually decompressing them, and saving the DEFLATE "dictionary" every so often so that random access is possible. This can make index files for gzip quite large, up to 10% of the compressed file size. You can use the `--block-factor` option to tune this.
 
 Lzopfs tries to be smart about this, and will prefer block boundaries that don't require a dictionary. So prefer gzip compressors that synchronize every so often. One way to achieve this is the use the `--rsyncable` option in most versions of gzip.
 
