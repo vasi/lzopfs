@@ -1,3 +1,5 @@
+#ifdef HAVE_BZIP2
+
 #include "Bzip2File.h"
 
 #include "PathUtils.h"
@@ -261,3 +263,5 @@ void Bzip2File::writeBlock(FileHandle& fh, const Block* b) const {
 	fh.writeBE(bits);
 	fh.writeBE(bb->level);
 }
+
+#endif // HAVE_BZIP2

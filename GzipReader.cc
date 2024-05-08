@@ -1,3 +1,5 @@
+#ifdef HAVE_ZLIB
+
 #include "GzipReader.h"
 
 #include <cstdio>
@@ -182,3 +184,5 @@ void SavingGzipReader::copyWindow(Buffer& buf) {
 	std::rotate_copy(outBuf().begin(), outBuf().end() - mStream->avail_out,
 		outBuf().end(), buf.begin());
 }
+
+#endif // HAVE_ZLIB

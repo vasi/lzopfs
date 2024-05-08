@@ -2,19 +2,38 @@
 
 #include <cstdio>
 
+#ifdef HAVE_LZO
 #include "LzopFile.h"
-#include "PixzFile.h"
+#endif
+#ifdef HAVE_ZLIB
 #include "GzipFile.h"
+#endif
+#ifdef HAVE_BZIP2
 #include "Bzip2File.h"
+#endif
+#ifdef HAVE_LZMA
+#include "PixzFile.h"
+#endif
 
 const FileList::OpenerList FileList::Openers(initOpeners());
 
 FileList::OpenerList FileList::initOpeners() {
-	OpenFunc o[] = { LzopFile::open, GzipFile::open, Bzip2File::open,
-		PixzFile::open };
+	OpenFunc o[] = {
+#ifdef HAVE_LZO
+		LzopFile::open,
+#endif
+#ifdef HAVE_ZLIB
+		GzipFile::open,
+#endif
+#ifdef HAVE_BZIP2
+		Bzip2File::open,
+#endif
+#ifdef HAVE_LZMA
+		PixzFile::open,
+#endif
+	};
 	return OpenerList(o, o + sizeof(o)/sizeof(o[0]));
 }
-
 
 CompressedFile *FileList::find(const std::string& dest) {
 	Map::iterator found = mMap.find(dest);

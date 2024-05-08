@@ -1,6 +1,8 @@
 #ifndef GZIPREADER_H
 #define GZIPREADER_H
 
+#ifdef HAVE_ZLIB
+
 #include "lzopfs.h"
 #include "FileHandle.h"
 
@@ -159,5 +161,7 @@ public:
 	
 	void copyWindow(Buffer& buf);
 };
+
+#endif // HAVE_ZLIB
 
 #endif // GZIPREADER_H

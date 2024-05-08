@@ -27,17 +27,21 @@ if not FindFUSE(conf):
     print('FUSE not found.')
     Exit(1)
 
-if not FindLib(conf, 'lzo2', 'lzo/lzo1x.h'):
-    print('LZO not found.')
-    Exit(1)
-if not FindLib(conf, 'lzma', 'lzma.h'):
-    print('LZMA not found.')
-    Exit(1)
-if not FindLib(conf, 'z', 'zlib.h'):
-    print('zlib not found.')
-    Exit(1)
-if not FindLib(conf, 'bz2', 'bzlib.h'):
-    print('bzip2 not found.')
+compression_libs = [
+    ('LZO', 'lzo2', 'lzo/lzo1x.h', 'HAVE_LZO'),
+    ('LZMA', 'lzma', 'lzma.h', 'HAVE_LZMA'),
+    ('zlib', 'z', 'zlib.h', 'HAVE_ZLIB'),
+    ('bipz2', 'bz2', 'bzlib.h', 'HAVE_BZIP2'),
+]
+compression_found = False
+for name, lib, header, define in compression_libs:
+    if FindLib(conf, lib, header):
+        conf.env.Append(CPPDEFINES = define)
+        compression_found = True
+    else:
+        print('%s not found, skipping' % name)
+if not compression_found:
+    print('No compression library found.')
     Exit(1)
 
 if not FindLib(conf, 'pthread', 'pthread.h'):

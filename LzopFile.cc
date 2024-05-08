@@ -1,3 +1,5 @@
+#ifdef HAVE_LZO
+
 #include "LzopFile.h"
 
 #include "PathUtils.h"
@@ -163,3 +165,5 @@ std::string LzopFile::destName() const {
 	if (removeExtension(base, "lzo")) return base;
 	return base;
 }
+
+#endif // HAVE_LZO

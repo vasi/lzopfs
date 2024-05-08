@@ -1,3 +1,5 @@
+#ifdef HAVE_LZMA
+
 #include "PixzFile.h"
 
 #include "PathUtils.h"
@@ -229,3 +231,5 @@ std::string PixzFile::destName() const {
 	if (removeExtension(base, "xz")) return base;
 	return base;
 }
+
+#endif // HAVE_LZMA

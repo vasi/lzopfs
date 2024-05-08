@@ -1,3 +1,5 @@
+#ifdef HAVE_ZLIB
+
 #include "GzipFile.h"
 
 #include "PathUtils.h"
@@ -169,3 +171,5 @@ void GzipFile::writeBlock(FileHandle& fh, const Block* b) const {
 	if (flags & BlockDictFlag)
 		fh.write(gb->dict);
 }
+
+#endif // HAVE_ZLIB
