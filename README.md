@@ -61,7 +61,7 @@ Even after the index is built, decompressing blocks requires repairing byte alig
 
 ### gzip
 
-Gzip is the worst format for lzopfs. Even if you know where a gzip block begins, that's enough enough to decompress it--you also need the current state of the DEFLATE decompressor.
+Gzip is the worst format for lzopfs. Even if you know where a gzip block begins, that's not enough to decompress it--you also need the current state of the DEFLATE decompressor.
 
 Indexing gzip files requires actually decompressing them, and saving the DEFLATE "dictionary" every so often so that random access is possible. This can make index files for gzip quite large, up to 10% of the compressed file size. You can use the `--gzip-block-factor` option to tune this.
 
