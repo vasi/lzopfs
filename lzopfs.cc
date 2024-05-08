@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
 		
 		// FIXME: help with options?
 		paths_t files;
-		OptData optd = { 0, &files, 0 };
+		OptData optd = { 0, &files, 0, "" };
 		struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 		fuse_opt_parse(&args, &optd, lf_opts, lf_opt_proc);
 		if (optd.nextSource)
@@ -177,8 +177,10 @@ int main(int argc, char *argv[]) {
 		
 		if (optd.gzipBlockFactor)
 			GzipFile::gMinDictBlockFactor = optd.gzipBlockFactor;
+
+		OpenParams params(CacheSize, optd.indexRoot);
 		
-		FileList *flist = new FileList(CacheSize, optd.indexRoot);
+		FileList *flist = new FileList(params);
 		for (paths_t::const_iterator iter = files.begin(); iter != files.end();
 				++iter) {
 			flist->add(*iter);

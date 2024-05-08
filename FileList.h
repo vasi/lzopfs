@@ -26,8 +26,7 @@ private:
 protected:
 	typedef unordered_map<std::string,CompressedFile*> Map;
 	Map mMap;
-	uint64_t mMaxBlockSize;
-	std::string mIndexRoot;
+	OpenParams mOpenParams;
 	
 	typedef CompressedFile* (*OpenFunc)(const std::string& path,
 		const OpenParams& params);
@@ -36,10 +35,11 @@ protected:
 	static OpenerList initOpeners();
 	
 public:
-	FileList(uint64_t maxBlockSize, const char *indexRoot)
-		: mMaxBlockSize(maxBlockSize) {
-		if (indexRoot != NULL)
-			mIndexRoot = PathUtils::realpath(indexRoot);
+	FileList(OpenParams params)
+		: mOpenParams(params)
+ {
+		if (!mOpenParams.indexRoot.empty())
+			mOpenParams.indexRoot = PathUtils::realpath(mOpenParams.indexRoot);
 	}
 	virtual ~FileList();
 	
