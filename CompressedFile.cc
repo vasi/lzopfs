@@ -41,11 +41,53 @@ void CompressedFile::dumpBlocks() {
 	}
 }
 
-
-void IndexedCompFile::initialize(uint64_t maxBlock) {
+void BlockListCompFile::initialize(uint64_t maxBlock) {
 	FileHandle fh(path(), O_RDONLY);
 	checkFileType(fh);
-	
+
+	loadIndex(fh);
+
+	checkSizes(maxBlock);
+}
+
+void BlockListCompFile::loadIndex(FileHandle& fh) {
+	buildIndex(fh);
+}
+
+namespace {
+struct BlockOffsetOrdering {
+	bool operator()(const Block* b, off_t off) {
+		return (b->uoff + b->usize - 1) < (uint64_t)off;
+	}
+
+	bool operator()(off_t off, const Block* b) {
+		return (uint64_t)off < b->uoff;
+	}
+};
+}
+
+BlockListCompFile::BlockIterator BlockListCompFile::findBlock(off_t off) const {
+	BlockList::const_iterator iter = std::lower_bound(
+		mBlocks.begin(), mBlocks.end(), off, BlockOffsetOrdering());
+	if (iter == mBlocks.end())
+		throw std::runtime_error("can't find block");
+	return BlockIterator(new Iterator(iter, mBlocks.end()));
+}
+
+BlockListCompFile::~BlockListCompFile() {
+	BlockList::iterator iter;
+	for (iter = mBlocks.begin(); iter != mBlocks.end(); ++iter)
+		delete *iter;
+}
+
+off_t BlockListCompFile::uncompressedSize() const {
+	if (mBlocks.empty())
+		return 0;
+	const Block& b = *mBlocks.back();
+	return b.uoff + b.usize;
+}
+
+void IndexedCompFile::loadIndex(FileHandle &fh) {
 	// Try reading the index
 	bool index = false;
 	{
@@ -58,51 +100,16 @@ void IndexedCompFile::initialize(uint64_t maxBlock) {
 		if (idxr.open() && readIndex(idxr))
 			index = true;
 	}
-	
+
 	if (!index) {
 		buildIndex(fh);
 		FileHandle idxw(indexPath(), O_WRONLY | O_CREAT | O_TRUNC, 0664);
 		writeIndex(idxw);
 	}
-
-	checkSizes(maxBlock);
 }
 
 std::string IndexedCompFile::indexPath() const {
 	return mIndexPath;
-}
-
-namespace {
-struct BlockOffsetOrdering {
-	bool operator()(const Block* b, off_t off) {
-		return (b->uoff + b->usize - 1) < (uint64_t)off;
-	}
-	
-	bool operator()(off_t off, const Block* b) {
-		return (uint64_t)off < b->uoff;
-	}
-};
-}
-
-CompressedFile::BlockIterator IndexedCompFile::findBlock(off_t off) const {
-	BlockList::const_iterator iter = std::lower_bound(
-		mBlocks.begin(), mBlocks.end(), off, BlockOffsetOrdering());
-	if (iter == mBlocks.end())
-		throw std::runtime_error("can't find block");
-	return BlockIterator(new Iterator(iter, mBlocks.end()));
-}
-
-IndexedCompFile::~IndexedCompFile() {
-	BlockList::iterator iter;
-	for (iter = mBlocks.begin(); iter != mBlocks.end(); ++iter)
-		delete *iter;
-}
-
-off_t IndexedCompFile::uncompressedSize() const {
-	if (mBlocks.empty())
-		return 0;
-	const Block& b = *mBlocks.back();
-	return b.uoff + b.usize;
 }
 
 bool IndexedCompFile::readIndex(FileHandle& fh) {
@@ -149,11 +156,11 @@ void IndexedCompFile::writeIndex(FileHandle& fh) const {
 void IndexedCompFile::writeBlock(FileHandle& fh, const Block* b) const {
 	fh.writeBE(b->usize);
 	fh.writeBE(b->csize);
-	fh.writeBE(b->coff);	
+	fh.writeBE(b->coff);
 }
 
 IndexedCompFile::IndexedCompFile(const std::string& path, const std::string& indexRoot)
-		: CompressedFile(path) {
+		: BlockListCompFile(path) {
 	if (indexRoot.empty()) {
 		mIndexPath = path + ".blockIdx";
 	} else {
