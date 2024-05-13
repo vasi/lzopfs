@@ -39,7 +39,6 @@ private:
 	Weight mWeight, mMaxWeight;
 	
 	void makeRoom(Weight newWeight) {
-		Weight orig = mWeight;
 		while (!mLRU.empty() && mWeight > newWeight) {
 			Entry &e = mLRU.back();
 			mMap.erase(e.key);
