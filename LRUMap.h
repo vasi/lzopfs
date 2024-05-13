@@ -39,11 +39,12 @@ private:
 	Weight mWeight, mMaxWeight;
 	
 	void makeRoom(Weight newWeight) {
-		for (LRUIterator uiter = --mLRU.end(); mWeight > newWeight; --uiter) {
-			Weight w = uiter->weight;
-			mMap.erase(uiter->key);
-			mLRU.erase(uiter);
-			mWeight -= w;
+		Weight orig = mWeight;
+		while (!mLRU.empty() && mWeight > newWeight) {
+			Entry &e = mLRU.back();
+			mMap.erase(e.key);
+			mWeight -= e.weight;
+			mLRU.pop_back();
 		}
 	}
 	
@@ -65,6 +66,13 @@ public:
 	
 	// Add a new item, ejecting old items to make room if necessary
 	Entry& add(const Key& k, const Value& v, Weight w) {
+		typename IterMap::iterator miter = mMap.find(k);
+		if (miter != mMap.end()) {
+			// Don't allow duplicates, just consider this a read
+			markNew(miter->second);
+			return *(miter->second);
+		}
+
 		if (w > maxWeight())
 			throw OverWeight();
 		
