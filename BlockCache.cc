@@ -34,11 +34,13 @@ void BlockCache::Job::operator()() {
 	if (!done) {
 		BufPtr nbuf(new Buffer());
 		info.file.decompressBlock(*block.biter, *nbuf);
-		Lock lock(info.cache.mMutex);
-		try {
-			info.cache.mMap.add(block.key, nbuf, nbuf->size());
-		} catch (Map::OverWeight& e) {
-			// that's ok!
+		{
+			Lock lock(info.cache.mMutex);
+			try {
+				info.cache.mMap.add(block.key, nbuf, nbuf->size());
+			} catch (Map::OverWeight& e) {
+				// that's ok!
+			}
 		}
 		info.cb(*block.biter, nbuf);
 	}
