@@ -57,6 +57,8 @@ protected:
 	ThreadList mThreads;
 	ConditionVariable mCond;
 	
+	// Consider differentiating between queued and in-progress jobs, so we can
+	// deduplicate jobs.
 	typedef std::queue<Job*> JobQ;
 	JobQ mJobs;
 	bool mCancelling;
