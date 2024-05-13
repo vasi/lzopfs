@@ -15,9 +15,13 @@ This doesn't actually uncompress your whole myimage.gz onto disk! Instead, only 
 
 ## How do I build it?
 
-This works on Mac and Linux, you could almost certainly port it to FreeBSD or something too.
+lzopfs is known to work on Mac, Linux and FreeBSD. You could probably build it on other unixy platforms too.
 
-You'll need a bunch of dependencies installed. On Ubuntu, something like `apt install zlib1g-dev liblzo2-dev liblzma-dev libbz2-dev scons libfuse-dev`.
+You'll need some dependencies installed:
+* scons and libfuse are mandatory
+* At least one compression library
+
+ On Ubuntu, you cna do something like `apt install zlib1g-dev liblzo2-dev liblzma-dev libbz2-dev scons libfuse3-dev libzstd-dev`.
 
 Then just run `scons` and you're good to go.
 
