@@ -43,6 +43,12 @@ For xz files produced by [pixz](https://github.com/vasi/pixz) or `xz -T`, there'
 
 Note that single-block xz files, the default produced by xz, are no good for lzopfs! They're one giant block, with no opportunity for random access.
 
+### zstd (multi-frame only)
+
+For zstd files using the [seekable format](https://github.com/facebook/zstd/blob/dev/contrib/seekable_format/zstd_seekable_compression_format.md), there's also an internal index that allows random access.
+
+Unfortunately, the standard zstd command can't produce these files. You'll need to use something like [zstdseek](https://github.com/SaveTheRbtz/zstd-seekable-format-go) or [t2sz](https://github.com/martinellimarco/t2sz).
+
 ### lzop
 
 [Lzop](https://www.lzop.org/) files don't have an internal index, but they do have blocks. To allow random access, lzopfs has to build its own index of which block corresponds to which uncompressed offset.
