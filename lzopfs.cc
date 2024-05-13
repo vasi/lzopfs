@@ -79,7 +79,6 @@ struct DirFiller {
 	fuse_fill_dir_t filler;
 	DirFiller(void *b, fuse_fill_dir_t f) : buf(b), filler(f) { }
 	void operator()(const std::string& path) {
-		fprintf(stderr, "|%s|\n", path.c_str());
 		filler(buf, path.c_str() + 1, NULL, 0
 #if FUSE_MAJOR_VERSION >= 3
 			, (fuse_fill_dir_flags)0
