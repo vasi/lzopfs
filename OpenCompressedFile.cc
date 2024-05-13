@@ -12,11 +12,15 @@ void OpenCompressedFile::decompressBlock(const Block& b, Buffer& ubuf) const {
 }
 
 namespace {
-	struct Callback : public BlockCache::Callback {
+	class Callback : public BlockCache::Callback {
+		Mutex mMutex;
+
 		off_t& max;
 		char *buf;
 		size_t size;
 		off_t offset;
+
+	public:
 		
 		Callback(off_t& m, char *b, size_t s, off_t o)
 			: max(m), buf(b), size(s), offset(o) { }
@@ -28,7 +32,10 @@ namespace {
 			size_t bstart = omin - block.uoff,
 				bsize = omax - omin;
 			memcpy(buf + omin - offset, &(*ubuf)[bstart], bsize);
-			max = omax;
+
+			Lock lock(mMutex);
+			if (max < omax)
+				max = omax;
 		}
 	};
 }
