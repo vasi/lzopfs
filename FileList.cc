@@ -14,6 +14,9 @@
 #ifdef HAVE_LZMA
 #include "PixzFile.h"
 #endif
+#ifdef HAVE_ZSTD
+#include "ZstdFile.h"
+#endif
 
 const FileList::OpenerList FileList::Openers(initOpeners());
 
@@ -30,6 +33,9 @@ FileList::OpenerList FileList::initOpeners() {
 #endif
 #ifdef HAVE_LZMA
 		PixzFile::open,
+#endif
+#ifdef HAVE_ZSTD
+		ZstdFile::open,
 #endif
 	};
 	return OpenerList(o, o + sizeof(o)/sizeof(o[0]));

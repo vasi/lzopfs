@@ -32,6 +32,7 @@ compression_libs = [
     ('LZMA', 'lzma', 'lzma.h', 'HAVE_LZMA'),
     ('zlib', 'z', 'zlib.h', 'HAVE_ZLIB'),
     ('bipz2', 'bz2', 'bzlib.h', 'HAVE_BZIP2'),
+    ('zstd', 'zstd', 'zstd.h', 'HAVE_ZSTD'),
 ]
 compression_found = False
 for name, lib, header, define in compression_libs:
