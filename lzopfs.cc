@@ -111,7 +111,7 @@ extern "C" int lf_open(const char *path, struct fuse_file_info *fi) {
 		return -EACCES;
 	
 	try {
-		fi->fh = FuseFH(new OpenCompressedFile(file, fi->flags));
+		fi->fh = FuseFH(new OpenCompressedFile(file, O_RDONLY));
 		return 0;
 	} catch (FileHandle::Exception& e) {
 		return e.error_code;
