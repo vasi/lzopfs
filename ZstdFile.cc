@@ -92,7 +92,7 @@ void ZstdFile::decompressBlock(const FileHandle& fh, const Block& b,
   Buffer inbuf;
 
   while (coff < cend) {
-    size_t toread = std::min(cend - coff, chunkSize);
+    size_t toread = std::min((size_t)(cend - coff), chunkSize);
     fh.tryPRead(coff, inbuf, toread);
     coff += inbuf.size();
     ZSTD_inBuffer input = { inbuf.data(), inbuf.size(), 0 };
