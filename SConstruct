@@ -7,9 +7,12 @@ SetOption('num_jobs', os.sysconf('SC_NPROCESSORS_ONLN'))
 
 opt = os.environ.get('OPT', '-O0')
 env = Environment(
-    LINKFLAGS = '-g',
-    CPPFLAGS = '-Wall -g %s' % opt,
-    ENV = { 'PATH' : os.environ['PATH'] })
+    LINKFLAGS = os.environ.get('LDFLAGS', '-g'),
+    CPPFLAGS = os.environ.get('CPPFLAGS', '-Wall -g %s' % opt),
+    ENV = {
+        'PATH' : os.environ['PATH'],
+        'PKG_CONFIG_PATH' : os.environ.get('PKG_CONFIG_PATH', ''),
+    },)
 env.Append(CPPFLAGS = ' ' + os.environ.get('CPPFLAGS', ''))
 
 conf = Configure(env, help = True, config_h = 'config.h',
