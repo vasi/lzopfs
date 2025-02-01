@@ -10,18 +10,35 @@ jobs:
             arch: x86_64
           - runner: ubuntu-22.04-arm
             arch: arm64
-    runs-on: ubuntu-20.04
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
       - name: install deps
-        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev liblzo2-dev liblzma-dev libbz2-dev scons libfuse3-dev libzstd-dev curl
+        # libfuse2 so linuxdeploy appimage can run
+        run: sudo apt-get update && sudo apt-get install -y zlib1g-dev liblzo2-dev liblzma-dev libbz2-dev scons libfuse3-dev libzstd-dev curl libfuse2
       - name: build lzopfs
         run: scons
       - name: fetch linuxdeploy
         run: 'curl -Lo linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-$(uname -m).AppImage && chmod +x linuxdeploy'
       - name: build appimage
         run: touch lzopfs.svg && ./linuxdeploy --appdir AppDir --executable lzopfs -i lzopfs.svg --output appimage --create-desktop-file
+      - name: rename appimage
+        run: mkdir appimage && mv lzopfs*.AppImage appimage/lzopfs-${{ matrix.arch }}.AppImage
       - uses: actions/upload-artifact@v4
         with:
           name: lzopfs-${{ matrix.arch }}.AppImage
-          path: lzopfs-${{ matrix.arch }}.AppImage
+          path: appimage/lzopfs-${{ matrix.arch }}.AppImage
+  release:
+    needs: appimage-create
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lzopfs-*.AppImage
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: Continuous
+          tag_name: continuous
+          prerelease: true
+          files: lzopfs-*.AppImage
