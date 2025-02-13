@@ -34,7 +34,7 @@ compression_libs = [
     ('LZO', 'lzo2', 'lzo/lzo1x.h', 'HAVE_LZO'),
     ('LZMA', 'lzma', 'lzma.h', 'HAVE_LZMA'),
     ('zlib', 'z', 'zlib.h', 'HAVE_ZLIB'),
-    ('bipz2', 'bz2', 'bzlib.h', 'HAVE_BZIP2'),
+    ('bzip2', 'bz2', 'bzlib.h', 'HAVE_BZIP2'),
     ('zstd', 'zstd', 'zstd.h', 'HAVE_ZSTD'),
 ]
 compression_found = False
