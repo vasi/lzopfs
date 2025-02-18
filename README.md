@@ -43,9 +43,9 @@ For a compression format to work, it must be possible to do random access within
 
 ### xz (multi-block only)
 
-For xz files produced by [pixz](https://github.com/vasi/pixz) or `xz -T`, there's an already an internal index that allows random access. Perfect for lzopfs!
+For xz files produced by [pixz](https://github.com/vasi/pixz) or `xz` in its default threaded-mode, there's an already an internal index that allows random access. Perfect for lzopfs!
 
-Note that single-block xz files, the default produced by xz, are no good for lzopfs! They're one giant block, with no opportunity for random access.
+Older versions of xz (before 2022) create single-block xz files, which are no good for lzopfs! They're one giant block, with no opportunity for random access.
 
 ### zstd (multi-frame only)
 
