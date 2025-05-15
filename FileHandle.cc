@@ -130,8 +130,10 @@ off_t FileHandle::size() const {
 	#include <libkern/OSByteOrder.h>
 #elif defined(HAVE_ENDIAN_H)
 	#include <endian.h>
-	#if __BYTE_ORDER == __LITTLE_ENDIAN
-		#define __LITTLE_ENDIAN__
+	#ifndef __LITTLE_ENDIAN__
+		#if __BYTE_ORDER == __LITTLE_ENDIAN
+			#define __LITTLE_ENDIAN__
+		#endif
 	#endif
 #else
 	#error "No endianness header."
