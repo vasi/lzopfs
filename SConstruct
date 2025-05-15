@@ -14,6 +14,8 @@ env = Environment(
         'PKG_CONFIG_PATH' : os.environ.get('PKG_CONFIG_PATH', ''),
     },)
 env.Append(CPPFLAGS = ' ' + os.environ.get('CPPFLAGS', ''))
+env.Tool('compilation_db')
+env.CompilationDatabase()
 
 conf = Configure(env, help = True, config_h = 'config.h',
     custom_tests = { 'CheckPkg': CheckPkg, 'CheckMac': CheckMac })

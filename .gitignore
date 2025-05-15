@@ -7,3 +7,5 @@ mount
 config.log
 .sconf_temp
 config.h
+compile_commands.json
+.idea
